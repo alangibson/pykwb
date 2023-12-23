@@ -32,7 +32,6 @@ import threading
 import csv
 import os
 from datetime import datetime, timedelta
-from maps import load_signal_maps
 from readers import SerialByteReader, TCPByteReader, FileByteReader
 
 def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, message_ids=[32,33,64,65]):
@@ -52,8 +51,6 @@ def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, messa
                     continue
                 signal_maps[row_message_id][row['name_en']] = sig
     return signal_maps
-
-SIGNAL_MAPS = load_signal_maps()
 
 PROP_LOGLEVEL_TRACE = 5
 PROP_LOGLEVEL_DEBUG = 4
@@ -387,11 +384,12 @@ MSG_TYPE_CTRL = 1
 MSG_TYPE_SENSE = 2
 class KWBMessageStreamLogkwb():
 
-    def __init__(self, reader: TCPByteReader):
+    def __init__(self, reader: TCPByteReader, signal_maps):
         self.reader = reader
         self.state = STATE_WAIT_FOR_HEADER
         self.receive_finished = False
         # self.oMsg: KWBMessage = KWBMessage()
+        self.signal_maps = signal_maps
 
         # State vars
         self.sTime = 0
@@ -449,7 +447,7 @@ class KWBMessageStreamLogkwb():
     def _validate_message(self):
         # return CRC check
         # return self.oMsg.IsCrcOk() # boolean
-        signal_map = SIGNAL_MAPS[self.nID]
+        signal_map = self.signal_maps[self.nID]
         self.oMsg = KWBMessage(message_id=self.nID, message_type=self.nType, checksum=self.nChecksum, counter=self.nCounter, data=self.anData, length=self.nLen, signal_map=signal_map)
         return self.oMsg.is_crc_ok()
 
@@ -508,18 +506,23 @@ class KWBMessageStreamLogkwb():
 
         timeout_at = datetime.now() + timedelta(0, timeout)
 
-        # while there are ids in packet_ids array
-        # while len(message_ids) > 0:
+        seen_message_ids = []
         for message in self.read_forever():
             
             # if timeout has elapsed, return False
             if datetime.now() > timeout_at:
                 return False
             
-            if message.message_id in message_ids:
-                message_ids.remove(message.message_id)
+            if (not message_ids or not len(message_ids)) and message.message_id not in seen_message_ids:
+                # No message ids, so just yield each message once  until timeout
+                seen_message_ids.append(message.message_id)
                 yield message
-            if len(message_ids) == 0:
+            elif message_ids and message.message_id in message_ids:
+                message_ids.remove(message.message_id)
+                seen_message_ids.append(message.message_id)
+                yield message
+
+            if message_ids and len(message_ids) == 0:
                 return
 
 
@@ -562,12 +565,15 @@ def main():
         parser.print_help()
         return -1
 
+    # Load up signal maps
+    signal_maps = load_signal_maps()
+
     # Build message generator
-    message_stream = KWBMessageStreamLogkwb(reader)
+    message_stream = KWBMessageStreamLogkwb(reader, signal_maps)
     message_stream.open()
 
     if args.read == 'once':
-        message_generator = message_stream.read_messages(args.message_ids)
+        message_generator = message_stream.read_messages(args.message_ids, timeout=3)
     else:
         message_generator = message_stream.read_forever()
     for message in message_generator:
