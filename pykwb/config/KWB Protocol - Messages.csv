@@ -1,4 +1,4 @@
-message_id,message_type,key,name_de,name_en,type,signed,offset,length,bit,scale,units,sensor_class,device_class,appliance,source
+message_id,message_type,key,name_de,name_en,type,signed,offset,length,bit,scale,units,state_class,device_class,appliance,source
 33,control,buffer_pump,Pumpepuffer,Buffer Pump,int,0,8,1,,0.3921568627,,measurement,,"Easyfire 2, Comfort 3",1
 33,control,ignition_on,Zuendung,Ignition On,bit,,16,,2,,,measurement,,"Easyfire 2, Comfort 3",1
 33,control,,KeineStoerung,No Interference,bit,,3,,0,,,measurement,,"Easyfire 2, Comfort 3",1

@@ -25,9 +25,10 @@ class TCPByteReader:
     def __init__(self, ip: str, port: int):
         self._ip = ip
         self._port = port
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket = None
     
     def open(self):
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.connect((self._ip, self._port))
 
     def read(self) -> bytes:
