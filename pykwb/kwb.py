@@ -41,14 +41,15 @@ def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, messa
         for row in reader:
             row_message_id = int(row['message_id'])
             row_source = int(row['source'])
+            row_key = row['key'] if row['key'] and row['key'] != '' else row['name_en'].lower().replace(' ', '_')
             if (row_source == source and row_message_id in message_ids):
                 if row['type'] == 'bit':
-                    sig = ('b', int(row['offset']), int(row['bit']), row['key'], row['state_class'], row['device_class'])
+                    sig = ('b', int(row['offset']), int(row['bit']), row_key, row['state_class'], row['device_class'])
                 elif row['type'] == 'int':
-                    sig = ('s' if int(row['signed']) else 'u', int(row['offset']), int(row['length']), float(row['scale']), row['units'], row['key'], row['state_class'] ,row['device_class'] )
+                    sig = ('s' if int(row['signed']) else 'u', int(row['offset']), int(row['length']), float(row['scale']), row['units'], row_key, row['state_class'] ,row['device_class'] )
                 else:
                     continue
-                signal_maps[row_message_id][row['name_en']] = sig
+                signal_maps[row_message_id][row_key] = sig
     return signal_maps
 
 
