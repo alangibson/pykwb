@@ -12,7 +12,4 @@ setup(
     url = 'https://github.com/bimbar/pykwb.git',
     license ="MIT",
     include_package_data=True
-    # data_files=[
-    #     ('messages', ['config/KWB Protocol - Messages.csv'])
-    # ]
 )
