@@ -26,14 +26,34 @@ SOFTWARE.
 Support for KWB Easyfire central heating units.
 """
 
-import struct
 import logging
-import socket
 import time
 import threading
-import argparse
-import serial
+import csv
+import os
+from datetime import datetime, timedelta
+from maps import load_signal_maps
+from readers import SerialByteReader, TCPByteReader, FileByteReader
 
+def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, message_ids=[32,33,64,65]):
+    signal_maps = [{} for i in range(255)]
+    filepath = os.path.join(os.path.dirname(__file__), path)
+    with open(filepath) as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            row_message_id = int(row['message_id'])
+            row_source = int(row['source'])
+            if (row_source == source and row_message_id in message_ids):
+                if row['type'] == 'bit':
+                    sig = ('b', int(row['offset']), int(row['bit']))
+                elif row['type'] == 'int':
+                    sig = ('s' if int(row['signed']) else 'u', int(row['offset']), int(row['length']), float(row['scale']), row['units'] )
+                else:
+                    continue
+                signal_maps[row_message_id][row['name_en']] = sig
+    return signal_maps
+
+SIGNAL_MAPS = load_signal_maps()
 
 PROP_LOGLEVEL_TRACE = 5
 PROP_LOGLEVEL_DEBUG = 4
@@ -47,16 +67,18 @@ PROP_MODE_TCP = 1
 PROP_MODE_FILE = 2
 
 STATUS_WAITING = 0
-STATUS_PRE_1 = 1
-STATUS_SENSE_PRE_2 = 2
-STATUS_SENSE_PRE_3 = 3
-STATUS_SENSE_PRE_LENGTH = 6
-STATUS_SENSE_DATA = 8
-STATUS_SENSE_CHECKSUM = 9
-STATUS_CTRL_PRE_2 = 10
-STATUS_CTRL_PRE_3 = 11
-STATUS_CTRL_DATA = 12
-STATUS_CTRL_CHECKSUM = 19
+STATUS_IS_PACKET = 1
+STATUS_IS_SENSE_PACKET = 2
+STATUS_SENSE_READ_PAYLOAD = 3
+STATUS_SENSE_READ_MESSAGE_ID = 6
+STATUS_SENSE_READ_COUNTER = 20
+STATUS_SENSE_READ_PAYLOAD = 8
+STATUS_SENSE_READ_CHECKSUM = 9
+STATUS_IS_CTRL_PACKET = 10
+STATUS_CTRL_READ_COUNTER = 11
+STATUS_CTRL_READ_PAYLOAD = 12
+STATUS_CTRL_READ_CHECKSUM = 19
+STATUS_CTRL_READ_MESSAGE_ID = 21
 STATUS_PACKET_DONE = 255
 
 PROP_PACKET_SENSE = 0
@@ -73,9 +95,98 @@ SERIAL_INTERFACE = "/dev/ttyUSB0"
 SERIAL_SPEED = 19200
 
 _LOGGER = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
+class KWBMessage:
+
+    def __init__(self, message_id, length, counter, checksum, data: bytearray, message_type=0, timepoint=0, signal_map={}):
+        self.timepoint = timepoint
+        self.message_type = message_type
+        self.length = length
+        self.message_id = message_id
+        self.counter = counter
+        self.data = data
+        self.checksum = checksum
+        self.signal_map = signal_map
+
+    def get_flag(self, offset, bit):
+        """Get a boolean flag"""
+        return (self.data[offset] >> bit) & 1
+
+    def get_value(self, offset, length=2, factor=0.1, signed=False):
+        """Get a numeric value"""
+        value = 0
+        # Accumulate value over all bytes
+        for i in range(0, length):
+            value += self.data[offset+i] << ((length-i-1) * 8)
+        # Exclude disconnected analog sensors
+        if value == 1300:
+            return None
+        # Adjust based on signedness
+        if signed & (value > (1 << (length*8-1))):
+            value -= (1 << (length*8))
+        # Apply scaling factor
+        value = value * factor
+        return value
+
+    def decode(self, signal_map=None):
+        """Decode all values in message according to provided signal map"""
+        signal_map = signal_map if signal_map else self.signal_map
+        sensor_values = {}
+        # Decode message according to the signal map
+        for sensor_name, aSig in signal_map.items():
+            if aSig[0] == 'b':
+                # Name: Type, Offset, Bit
+                value = self.get_flag(aSig[1], aSig[2])
+                # aSignalValues[strSignalName] = value
+                sensor_values[sensor_name] = (value, *aSig)
+            else:
+                # Name: Type, Offset, Length, Factor, Unit
+                value = self.get_value(
+                    aSig[1], aSig[2], aSig[3], aSig[0] == 's')
+                # aSignalValues[strSignalName] = value
+                sensor_values[sensor_name] = (value, *aSig)
+        # else:
+        #     # If we have no signal map, decode data payload as if it was all temperatures
+        #     for nOffset in range(0, self.nLen-6, 2):
+        #         strSignalName = ("Offset_%02d (%03d, %03d)" % (
+        #             nOffset, self.anData[nOffset], self.anData[nOffset+1]))
+        #         aSignalValues[strSignalName] = self.GetValue(nOffset)
+        return sensor_values
+
+    def get_crc(self):
+        def crc_add(crc, byte):
+            crc = (((crc << 1) | crc >> 7) & 0xFF)
+            crc += byte
+            if (crc > 255):
+                crc -= 255
+            return crc
+        crc = 0x02
+        crc = crc_add(crc, self.length)
+        crc = crc_add(crc, self.message_id)
+        crc = crc_add(crc, self.counter)
+        for i in range(len(self.data)):
+            crc = crc_add(crc, self.data[i])
+        return crc
+    
+    def is_crc_ok(self):
+        """Returns true if message checksum is OK"""
+        return self.get_crc() == self.checksum
+
+    def copy_from(self, other_message):
+        self.timepoint = other_message.timepoint
+        self.message_type = other_message.message_type
+        self.length = other_message.length
+        self.message_id = other_message.message_id
+        self.counter = other_message.counter
+        self.data = other_message.data
+        self.checksum = other_message.checksum
+
+    def is_same(self, other_msg):
+        return self.data == other_msg.data
 
 
-class KWBEasyfireSensor:
+class KWBSensor:
     """This Class represents as single sensor."""
 
     def __init__(self, _packet, _index, _name, _sensor_type):
@@ -131,77 +242,18 @@ class KWBEasyfireSensor:
         return self.name + ": I: " + str(self.index) + " T: " + str(self.sensor_type) + "(" + str(self.unit_of_measurement) + ") V: " + str(self.value)
 
 
-# pylint: disable=too-many-instance-attributes
-class KWBEasyfire:
-    """Communicats with the KWB Easyfire unit."""
+class KWBMessageStream:
 
-    def __init__(self, _mode, _ip="", _port=0, _serial_device="", _serial_speed=19200, _file_path=""):
-        """Initialize the Object."""
+    def __init__(self, reader):
+        self._reader = reader
 
-        self._debug_level = PROP_LOGLEVEL_NONE
-        self._run_thread = True
+    def open(self):
+        self._reader.open()
 
-        self._mode = _mode
-        self._ip = _ip
-        self._port = _port
-        self._serial_device = _serial_device
-        self._serial_speed = _serial_speed
-        self._file_path = _file_path
-        self._logdatalen = 1024
-        self._logdata = []
+    def close(self):
+        self._reader.close()
 
-        self._sense_sensor = []
-
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 0, "RAW SENSE", PROP_SENSOR_RAW))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 0, "Supply", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 1, "Return", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 2, "Boiler 0", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 3, "Furnace", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 4, "Buffer Tank 2", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 5, "Buffer Tank 1", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 6, "Outside", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 7, "Exhaust", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 8, "Unknown", PROP_SENSOR_TEMPERATURE))
-        self._sense_sensor.append(KWBEasyfireSensor(PROP_PACKET_SENSE, 12, "Stoker Channel", PROP_SENSOR_TEMPERATURE))
-
-        self._ctrl_sensor = []
-
-        self._ctrl_sensor.append(KWBEasyfireSensor(PROP_PACKET_CTRL, 0, "RAW CTRL", PROP_SENSOR_RAW))
-        self._ctrl_sensor.append(KWBEasyfireSensor(PROP_PACKET_CTRL, 17, "Return Mixer", PROP_SENSOR_FLAG))
-        self._ctrl_sensor.append(KWBEasyfireSensor(PROP_PACKET_CTRL, 25, "Unknown Resupply", PROP_SENSOR_FLAG))
-
-        self._thread = threading.Thread(target=self.run)
-
-        self._open_connection()
-
-    def _debug(self, level, text):
-        """Output a debug log text."""
-        if (level <= self._debug_level):
-            print(text)
-
-    def __del__(self):
-        """Destruct the object."""
-        self._debug(PROP_LOGLEVEL_DEBUG, self._logdata)
-        self._close_connection()
-
-    def _open_connection(self):
-        """Open a connection to the easyfire unit."""
-        if (self._mode == PROP_MODE_SERIAL):
-            self._serial = serial.Serial(self._serial_device, self._serial_speed)
-        elif (self._mode == PROP_MODE_TCP):
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.connect((self._ip, self._port))
-        elif (self._mode == PROP_MODE_FILE):
-            self._file = open(self._file_path, "r")
-
-    def _close_connection(self):
-        """Close the connection to the easyfire unit."""
-        if (self._mode == PROP_MODE_SERIAL):
-            self._serial.close()
-        elif (self._mode == PROP_MODE_TCP):
-            self._socket.close()
-        elif (self._mode == PROP_MODE_FILE):
-            self._file.close()
+    ## CRC computation
 
     @staticmethod
     def _byte_rot_left(byte, distance):
@@ -214,236 +266,316 @@ class KWBEasyfire:
         checksum = checksum + value
         if (checksum > 255):
             checksum = checksum - 255
-        self._debug(PROP_LOGLEVEL_TRACE, "C: " + str(checksum) + " V: " + str(value))
+        # _LOGGER.debug("C: " + str(checksum) + " V: " + str(value))
         return checksum
 
-    def _read_byte(self):
-        """Read a byte from input."""
-
-        to_return = ""
-        if (self._mode == PROP_MODE_SERIAL):
-            to_return = self._serial.read(1)
-        elif (self._mode == PROP_MODE_TCP):
-            to_return = self._socket.recv(1)
-        elif (self._mode == PROP_MODE_FILE):
-            to_return = struct.pack("B", int(self._file.readline()))
-
-        _LOGGER.debug("READ: " + str(ord(to_return)))
-        self._logdata.append(ord(to_return))
-        if (len(self._logdata) > self._logdatalen):
-            self._logdata = self._logdata[len(self._logdata) - self._logdatalen:]
-
-        self._debug(PROP_LOGLEVEL_TRACE, "READ: " + str(ord(to_return)))
-
-        return to_return
-
-    def _read_ord_byte(self):
-        """Read a byte as number from the input."""
-        return ord(self._read_byte())
-
-    @staticmethod
-    def _sense_packet_to_data(packet):
-        """Remove the escape pad bytes from a sense packet (\2\0 -> \2)."""
-        data = bytearray(0)
-        last = 0
-        i = 1
-        while (i < len(packet)):
-            if not (last == 2 and packet[i] == 0):
-                data.append(packet[i])
-            last = packet[i]
-            i += 1
-
-        return data
-
-    @staticmethod
-    def _decode_temp(byte_1, byte_2):
-        """Decode a signed short temperature as two bytes to a single number."""
-        temp = (byte_1 << 8) + byte_2
-        if (temp > 32767):
-            temp = temp - 65536
-        temp = temp / 10
-        return temp
+    ## Message Input
 
     # pylint: disable=too-many-branches, too-many-statements
-    def _read_packet(self):
-        """Read a packet from the input."""
+    def read_message(self) -> KWBMessage | None:
+        """Read a message from the input."""
 
+        # We discover all of these as we loop over the byte stream
         status = STATUS_WAITING
         mode = 0
         checksum = 0
-        checksum_calculated = 0
+        # checksum_calculated = 0
         length = 0
-        version = 0
+        message_id = 0
         i = 0
-        cnt = 0
+        counter = 0
         packet = bytearray(0)
 
+        # Loop over byte stream until we have a valid packet
         while (status != STATUS_PACKET_DONE):
 
-            read = self._read_ord_byte()
-            if (status != STATUS_CTRL_CHECKSUM and status != STATUS_SENSE_CHECKSUM):
-                checksum_calculated = self._add_to_checksum(checksum_calculated, read)
-            self._debug(PROP_LOGLEVEL_TRACE, "R: " + str(read))
-            self._debug(PROP_LOGLEVEL_TRACE, "S: " + str(status))
+            # Read in a byte
+            read = ord(self._reader.read())
+
+            # If we are not currently reading in the checksum,
+            # then add whatever we just read to the checksum calculator
+            # if (status != STATUS_CTRL_READ_CHECKSUM and status != STATUS_SENSE_READ_CHECKSUM):
+            #     checksum_calculated = self._add_to_checksum(checksum_calculated, read)
 
             if (status == STATUS_WAITING):
+                # A byte == 2 received while in WAITING state indicates the start of a packet
                 if (read == 2):
-                    status = STATUS_PRE_1
-                    checksum_calculated = read
+                    status = STATUS_IS_PACKET
+                    # checksum_calculated = read
                 else:
+                    # We're in the middle of a packet, so just keep waiting for another beginning
                     status = STATUS_WAITING
-            elif (status == STATUS_PRE_1):
+            elif (status == STATUS_IS_PACKET):
                 checksum = 0
                 if (read == 2):
-                    status = STATUS_SENSE_PRE_2
-                    checksum_calculated = read
+                    # We found a 2 in byte 2 position, indicating a sense message
+                    status = STATUS_IS_SENSE_PACKET
+                    # checksum_calculated = read
+                    # TODO record that this is a sense message
                 elif (read == 0):
                     status = STATUS_WAITING
                 else:
-                    status = STATUS_CTRL_PRE_2
-            elif (status == STATUS_SENSE_PRE_2):
+                    # We found other than a 2 in byte 2 position, indicating a control message
+                    status = STATUS_IS_CTRL_PACKET
+                    # TODO record that this is a control message
+            elif (status == STATUS_IS_SENSE_PACKET):
+                # Read in message length
                 length = read
-                status = STATUS_SENSE_PRE_LENGTH
-            elif (status == STATUS_SENSE_PRE_LENGTH):
-                version = read
-                status = STATUS_SENSE_PRE_3
-            elif (status == STATUS_SENSE_PRE_3):
-                cnt = read
+                status = STATUS_SENSE_READ_MESSAGE_ID
+            elif (status == STATUS_SENSE_READ_MESSAGE_ID):
+                # Read in message id
+                message_id = read
+                status = STATUS_SENSE_READ_COUNTER
+            elif (status == STATUS_SENSE_READ_COUNTER):
+                counter = read
                 i = 0
-                status = STATUS_SENSE_DATA
-            elif (status == STATUS_SENSE_DATA):
+                status = STATUS_SENSE_READ_PAYLOAD
+            elif (status == STATUS_SENSE_READ_PAYLOAD):
                 packet.append(read)
                 i = i + 1
+                # If we've read in the entire message length, get ready to read in checksum
                 if (i == length):
-                    status = STATUS_SENSE_CHECKSUM
-            elif (status == STATUS_SENSE_CHECKSUM):
+                    status = STATUS_SENSE_READ_CHECKSUM
+            elif (status == STATUS_SENSE_READ_CHECKSUM):
+                # Read in checksum
                 checksum = read
                 mode = PROP_PACKET_SENSE
                 status = STATUS_PACKET_DONE
-            elif (status == STATUS_CTRL_PRE_2):
-                version = read
-                status = STATUS_CTRL_PRE_3
-            elif (status == STATUS_CTRL_PRE_3):
-                cnt = read
+            elif (status == STATUS_IS_CTRL_PACKET):
+                length = read
+                status = STATUS_CTRL_READ_COUNTER
+            elif (status == STATUS_CTRL_READ_MESSAGE_ID):
+                message_id = read
+                status = STATUS_CTRL_READ_COUNTER
+            elif (status == STATUS_CTRL_READ_COUNTER):
+                counter = read
                 i = 0
-                length = 16
-                status = STATUS_CTRL_DATA
-            elif (status == STATUS_CTRL_DATA):
+                status = STATUS_CTRL_READ_PAYLOAD
+            elif (status == STATUS_CTRL_READ_PAYLOAD):
                 packet.append(read)
                 i = i + 1
                 if (i == length):
-                    status = STATUS_CTRL_CHECKSUM
-            elif (status == STATUS_CTRL_CHECKSUM):
+                    status = STATUS_CTRL_READ_CHECKSUM
+            elif (status == STATUS_CTRL_READ_CHECKSUM):
                 checksum = read
                 mode = PROP_PACKET_CTRL
                 status = STATUS_PACKET_DONE
             else:
                 status = STATUS_WAITING
 
-        self._debug(PROP_LOGLEVEL_DEBUG, "MODE: " + str(mode) + " Version: " + str(version) + " Checksum: " + str(checksum) + " / " + str(checksum_calculated) + " Count: " + str(cnt) + " Length: " + str(len(packet)))
-        self._debug(PROP_LOGLEVEL_TRACE, "Packet: " + str(packet))
+        _LOGGER.debug("MODE: " + str(mode) + " Message Id: " + str(message_id) + " Checksum: " + str(checksum) + " Count: " + str(counter) + " Length: " + str(len(packet)))
+        _LOGGER.debug("Packet: " + str(packet))
+        
+        signal_map = SIGNAL_MAPS[message_id]
+        message = KWBMessage(message_id=message_id, length=length, counter=counter, data=packet, checksum=checksum, message_type=mode, signal_map=signal_map)
+        if not message.is_crc_ok():
+            _LOGGER.debug('Read message with bad CRC %s. Throwing message away.' % message.get_crc())
+            return None
+        return message
 
-        return (mode, version, packet)
+    def read_forever(self):
+        while True:
+            # Read a message
+            message = self.read_message()
+            if message:
+                yield message
 
-    def _decode_sense_packet(self, version, packet):
-        """Decode a sense packet into the list of sensors."""
 
-        data = self._sense_packet_to_data(packet)
+STATE_WAIT_FOR_HEADER = 1
+STATE_READ_MSG = 2
+MSG_TYPE_CTRL = 1
+MSG_TYPE_SENSE = 2
+class KWBMessageStreamLogkwb():
 
-        offset = 4
-        i = 0
+    def __init__(self, reader: TCPByteReader):
+        self.reader = reader
+        self.state = STATE_WAIT_FOR_HEADER
+        self.receive_finished = False
+        # self.oMsg: KWBMessage = KWBMessage()
 
-        datalen = len(data) - offset - 6
-        temp_count = int(datalen / 2)
-        temp = []
+        # State vars
+        self.sTime = 0
+        self.nType = 0
+        self.nLen = 0
+        self.nID = 0
+        self.nCounter = 0
+        self.anData = bytearray(0)
+        self.nChecksum = 0
+        self.oMsg = None
 
-        for i in range(temp_count):
-            temp_index = i * 2 + offset
-            temp.append(self._decode_temp(data[temp_index], data[temp_index + 1]))
+    def _found_header(self):
+        # header found
+        self.state = STATE_READ_MSG
+        # self.oMsg = KWBMessage()
+        # self.oMsg.sTime = datetime.now()
+        # # -> CtrlMessage
+        # self.oMsg.nType = MSG_TYPE_CTRL
+        self.sTime = datetime.now()
+        self.nType = MSG_TYPE_CTRL
 
-        self._debug(PROP_LOGLEVEL_DEBUG, "T: " + str(temp))
+    def _read_message_length(self, received_byte):
+        # self.oMsg.nLen = received_byte
+        self.nLen = received_byte
 
-        for sensor in self._sense_sensor:
-            if (sensor.sensor_type == PROP_SENSOR_TEMPERATURE):
-                sensor.value = temp[sensor.index]
-            elif (sensor.sensor_type == PROP_SENSOR_RAW):
-                sensor.value = packet
+    def _read_message_id(self):
+        # next byte: Message ID       
+        # self.oMsg.nID = ord(self.reader.read())
+        self.nID = ord(self.reader.read())
 
-        self._debug(PROP_LOGLEVEL_DEBUG, str(self))
+    def _read_message_counter(self):
+        # next byte: Message Counter
+        # self.oMsg.nCounter = ord(self.reader.read())
+        self.nCounter = ord(self.reader.read())
 
-    def _decode_ctrl_packet(self, version, packet):
-        """Decode a control packet into the list of sensors."""
+    def _read_payload(self):
+        # Data Length = Message Length without the header and checksum
+        # nDataLen = self.oMsg.nLen - 4 - 1
+        nDataLen = self.nLen - 4 - 1
+        # Extract just the payload data
+        # self.oMsg.anData = bytearray(nDataLen)
+        self.anData = bytearray(nDataLen)
+        for i in range(nDataLen):
+            # read Data bytes
+            received_byte = ord(self.reader.read())
+            # self.oMsg.anData[i] = received_byte
+            self.anData[i] = received_byte
+            # "2" in data stream is followed by "0" ...
+            if received_byte == 2:         
+                # this should be a 0 ...        
+                self.reader.read()              
+        # self.oMsg.nChecksum = ord(self.reader.read())
+        self.nChecksum = ord(self.reader.read())
 
-        for i in range(5):
-            input_bit = packet[i]
-            self._debug(PROP_LOGLEVEL_DEBUG, "Byte " + str(i) + ": " + str((input_bit >> 7) & 1) + str((input_bit >> 6) & 1) + str((input_bit >> 5) & 1) + str((input_bit >> 4) & 1) + str((input_bit >> 3) & 1) + str((input_bit >> 2) & 1) + str((input_bit >> 1) & 1) + str(input_bit & 1))
+    def _validate_message(self):
+        # return CRC check
+        # return self.oMsg.IsCrcOk() # boolean
+        signal_map = SIGNAL_MAPS[self.nID]
+        self.oMsg = KWBMessage(message_id=self.nID, message_type=self.nType, checksum=self.nChecksum, counter=self.nCounter, data=self.anData, length=self.nLen, signal_map=signal_map)
+        return self.oMsg.is_crc_ok()
 
-        for sensor in self._ctrl_sensor:
-            if (sensor.sensor_type == PROP_SENSOR_FLAG):
-                sensor.value = (packet[sensor.index // 8] >> (sensor.index % 8)) & 1
-            elif (sensor.sensor_type == PROP_SENSOR_RAW):
-                sensor.value = packet
+    def _read_message(self, received_byte):
+        self._read_message_length(received_byte) # current byte: Message Length
+        self._read_message_id() # next byte: Message ID     
+        self._read_message_counter() # next byte: Message Counter
+        self._read_payload()
 
-    def get_sensors(self):
-        """Return the list of sensors."""
-        return self._sense_sensor + self._ctrl_sensor
+    def _found_message(self, received_byte):
+        if received_byte == 0:
+            # header invalid -> start again
+            # 0 is an escape value indicating that this is not a header
+            self.state = STATE_WAIT_FOR_HEADER
+        elif received_byte == 2:
+            # extended header -> SenseMessage
+            self.state = STATE_READ_MSG
+            # self.oMsg.nType = MSG_TYPE_SENSE
+            self.nType = MSG_TYPE_SENSE
+        else:
+            # valid header -> read in payload
+            try:
+                self._read_message(received_byte)
+            except ValueError:
+                # We get "ValueError: negative count" on a bad read
+                pass
+            finally:
+                self.receive_finished = True
 
-    def __str__(self):
-        """Returns an informational text representation of the object."""
-        ret = ""
+    def _read_once(self):
+        # read one byte
+        received_byte = ord(self.reader.read())
 
-        for sensor in self._sense_sensor:
-            ret = ret + str(sensor) + "\n"
+        if self.state == STATE_WAIT_FOR_HEADER and received_byte == 2:
+            self._found_header()
+        elif self.state == STATE_READ_MSG:
+            self._found_message(received_byte)
+        else:
+            pass # TODO?
 
-        for sensor in self._ctrl_sensor:
-            ret = ret + str(sensor) + "\n"
+    def open(self):
+        self.reader.open()
 
-        return ret
+    def close(self):
+        self.reader.close()
 
-    def run(self):
-        """Main thread that reads from input and populates the sensors."""
-        while (self._run_thread):
-            (mode, version, packet) = self._read_packet()
-            if (mode == PROP_PACKET_SENSE):
-                self._decode_sense_packet(version, packet)
-            elif (mode == PROP_PACKET_CTRL):
-                self._decode_ctrl_packet(version, packet)
+    def read_forever(self):
+        while True:
+            self._read_once()
+            is_ok = self._validate_message()
+            if is_ok:
+                yield self.oMsg
 
-    def run_thread(self):
-        """Run the main thread."""
-        self._run_thread = True
-        self._thread.setDaemon(True)
-        self._thread.start()
+    def read_messages(self, message_ids = [], timeout=5):
+        """Read message stream until we have one each of the given message ids"""
 
-    def stop_thread(self):
-        """Stop the main thread."""
-        self._run_thread = False
+        timeout_at = datetime.now() + timedelta(0, timeout)
 
-    def is_alive(self):
-        """Determine if thread is alive."""
-        return self._thread.is_alive()
+        # while there are ids in packet_ids array
+        # while len(message_ids) > 0:
+        for message in self.read_forever():
+            
+            # if timeout has elapsed, return False
+            if datetime.now() > timeout_at:
+                return False
+            
+            if message.message_id in message_ids:
+                message_ids.remove(message.message_id)
+                yield message
+            if len(message_ids) == 0:
+                return
 
 
 def main():
     """Main method for debug purposes."""
+
+    from pprint import pprint
+    import argparse
+
     parser = argparse.ArgumentParser()
+    
+    def list_of_ints(arg):
+        return list(map(int, arg.split(',')))
+
+    group_read = parser.add_argument_group('Read')
+    group_read.add_argument('--once', dest='read', action='store_const', const='once', help="Read certain message ids and exit")
+    group_read.add_argument('--ids', dest='message_ids', help="Specify message ids", type=list_of_ints)
     group_tcp = parser.add_argument_group('TCP')
     group_tcp.add_argument('--tcp', dest='mode', action='store_const', const=PROP_MODE_TCP, help="Set tcp mode")
-    group_tcp.add_argument('--host', dest='hostname', help="Specify hostname", default='')
-    group_tcp.add_argument('--port', dest='port', help="Specify port", default=23, type=int)
+    group_tcp.add_argument('--host', dest='hostname', help="Specify hostname", default=TCP_IP)
+    group_tcp.add_argument('--port', dest='port', help="Specify port", default=TCP_PORT, type=int)
     group_serial = parser.add_argument_group('Serial')
     group_serial.add_argument('--serial', dest='mode', action='store_const', const=PROP_MODE_SERIAL, help="Set serial mode")
-    group_serial.add_argument('--interface', dest='interface', help="Specify interface", default='')
+    group_serial.add_argument('--interface', dest='interface', help="Specify interface", default=SERIAL_INTERFACE)
+    group_serial.add_argument('--baud', dest='baud', help="Specify data rate", default=SERIAL_SPEED)
     group_file = parser.add_argument_group('File')
     group_file.add_argument('--file', dest='mode', action='store_const', const=PROP_MODE_FILE, help="Set file mode")
     group_file.add_argument('--name', dest='file', help="Specify file name", default='')
+    group_file.add_argument('--encoding', dest='encoding', help="Specify file encoding", default='utf8')
     args = parser.parse_args()
 
-    kwb = KWBEasyfire(args.mode, args.hostname, args.port, args.interface, 0, args.file)
-    kwb.run_thread()
-    time.sleep(5)
-    kwb.stop_thread()
-    print(kwb)
+    # Build ByteReader
+    if args.mode == PROP_MODE_TCP:
+        reader = TCPByteReader(ip=args.hostname, port=args.port)
+    elif args.mode == PROP_MODE_SERIAL:
+        reader = SerialByteReader(dev=args.interface, baud=args.baud)
+    elif args.mode == PROP_MODE_FILE:
+        reader = FileByteReader(path=args.name, encoding=args.encoding)
+    else:
+        parser.print_help()
+        return -1
+
+    # Build message generator
+    message_stream = KWBMessageStreamLogkwb(reader)
+    message_stream.open()
+
+    if args.read == 'once':
+        message_generator = message_stream.read_messages(args.message_ids)
+    else:
+        message_generator = message_stream.read_forever()
+    for message in message_generator:
+        print('====')
+        print('Message Id', message.message_id)
+        pprint(message.decode())
+    
+    message_stream.close()
 
 
 if __name__ == "__main__":
