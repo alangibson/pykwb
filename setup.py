@@ -10,5 +10,9 @@ setup(
     author = 'Markus Peter',
     author_email = 'mpeter@emdev.de',
     url = 'https://github.com/bimbar/pykwb.git',
-    license ="MIT"
+    license ="MIT",
+    include_package_data=True
+    # data_files=[
+    #     ('messages', ['config/KWB Protocol - Messages.csv'])
+    # ]
 )
