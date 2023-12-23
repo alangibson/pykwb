@@ -1,196 +1,196 @@
-message_id,message_type,name_de,name_en,type,signed,offset,length,bit,scale,units,appliance,source
-33,control,Pumpepuffer,Buffer Pump On,int,0,8,1,,0.3921568627,,"Easyfire 2, Comfort 3",1
-33,control,Zuendung,Ignition On,bit,,16,,2,,,"Easyfire 2, Comfort 3",1
-33,control,KeineStoerung,No Interference,bit,,3,,0,,,"Easyfire 2, Comfort 3",1
-33,control,Reinigung,Cleaning On,bit,,3,,7,,,"Easyfire 2, Comfort 3",1
-33,control,Drehrost,Rotating Grate On,bit,,3,,6,,,"Easyfire 2, Comfort 3",1
-33,control,Raumaustragung,Pellet Suction On,bit,,9,,2,,,"Easyfire 2, Comfort 3",1
-33,control,Hauptantrieb,,int,0,12,2,,10,,"Easyfire 2, Comfort 3",1
-33,control,Hauptantriebtakt,,int,0,10,2,,10,,"Easyfire 2, Comfort 3",1
-32,sense,photo,Photodiode,int,1,32,2,,,,"Easyfire 2, Comfort 3",1
-32,sense,Kesseltemperatur,Boiler Temp,int,1,12,2,,0.1,,"Easyfire 2, Comfort 3",1
-32,sense,Rauchgastemperatur,Exhaust Gas Temp,int,1,20,2,,0.1,,"Easyfire 2, Comfort 3",1
-32,sense,Proztemperatur,CPU Temp,int,1,22,2,,0.1,,"Easyfire 2, Comfort 3",1
-32,sense,Unterdruck,,int,1,34,2,,0.1,,"Easyfire 2, Comfort 3",1
-32,sense,Saugzug,,int,0,69,2,,0.6,,"Easyfire 2, Comfort 3",1
-32,sense,Geblaese,,int,0,71,2,,0.6,,"Easyfire 2, Comfort 3",1
-32,sense,ext,,bit,,4,,7,,,"Easyfire 2, Comfort 3",1
-32,sense,Hauptantriebimpuls,,bit,,3,,7,,,"Easyfire 2, Comfort 3",1
-16,sense,T_Vorlauf_HK1,Loop 1 Out Flow Temp,int,1,5,2,,0.1,C,,2
-16,sense,T_Ruecklauf_Kessel,Boiler Return Flow Temp,int,1,7,2,,0.1,C,,2
-16,sense,T_Boiler,Tank Temp,int,1,9,2,,0.1,C,,2
-16,sense,T_Kessel,Boiler Temp,int,1,11,2,,0.1,C,,2
-16,sense,T_Outside,Outdoor Temp,int,1,17,2,,0.1,C,,2
-16,sense,T_Rauchgas,Exhaust Gas Temp,int,1,19,2,,0.1,C,,2
-16,sense,T_Control,,int,1,21,2,,0.1,C,,2
-16,sense,T_Stokerkanal,,int,1,29,2,,0.1,C,,2
-17,control,Aschebehaelter,Ash Can OK,bit,,3,6,,,,,2
-17,control,Pellet_Vorrat,Pellet Stock OK,bit,,4,3,,,,,2
-17,control,Brandschutzklappe,,bit,,1,1,,,,,2
-17,control,Reinigung,,bit,,2,1,,,,,2
-17,control,Alarm2,Alarm 2,bit,,1,2,,,,,2
-17,control,Alarm1,Alarm 1,bit,,1,3,,,,,2
-17,control,Boiler_Pumpe,Tank Pump On,bit,,1,5,,,,,2
-17,control,HK1_Pumpe,Loop 1 Pump On,bit,,1,7,,,,,2
-17,control,Ascheaustragung,Ash Removal On,bit,,2,0,,,,,2
-17,control,Cleaning On,,bit,,2,1,,,,,2
-17,control,HK1_Mischer,Loop 1 Mixer,bit,,2,6,,,,,2
-17,control,Hauptrelais,,bit,,3,4,,,,,2
-17,control,Raumaustragung,Pellet Suction On,bit,,3,6,,,,,2
-17,control,Kessel_AN,Boiler On,bit,,15,0,,,,,2
-33,control,Kesselleistung,,int,0,13,1,,1,,"Easyfire 1, Comfort 3",3
-17,control,Zündung,Ignition On,bit,,6,,0,,,,4
-17,control,Brandschutzklappe,,bit,,6,,1,,,,4
-17,control,Alarm 2,Alarm 2,bit,,6,,2,,,,4
-17,control,Alarm 1,Alarm 1,bit,,6,,3,,,,4
-17,control,Leistung,,bit,,6,,4,,,,4
-17,control,Boiler 0 Pumpe,Tank 0 Pump On,bit,,6,,5,,,,4
-17,control,HK2 Pumpe,Loop 2 Pump On,bit,,6,,6,,,,4
-17,control,HK1 Pumpe,Loop 1 Pump On,bit,,6,,7,,,,4
-17,control,Ascheaustragung,Ash Removal On,bit,,7,,0,,,,4
-17,control,Cleaning On,,bit,,7,,1,,,,4
-17,control,Rücklaufmischer ein,Boiler Return Mixer Open,bit,,7,,2,,,,4
-17,control,Rücklaufmischer zu,Boiler Return Mixer Closed,bit,,7,,3,,,,4
-17,control,HK2 Mischer ein,Loop 2 Mixer Open,bit,,7,,4,,,,4
-17,control,HK2 Mischer zu,Loop 2 Mixer Closed,bit,,7,,5,,,,4
-17,control,HK1 Mischer ein,Loop 1 Mixer Open,bit,,7,,6,,,,4
-17,control,HK1 Mischer zu,Loop 1 Mixer Closed,bit,,7,,7,,,,4
-17,control,Hauptreials,,bit,,8,,4,,,,4
-17,control,Raumaustragung,Pellet Suction On,bit,,8,,5,,,,4
-17,control,Rücklaufpumpe,,???,???,9,1,,0.3921568627,%,,4
-17,control,Gebläsestufe,,???,???,10,1,,0.1960784314,Stufe,,4
-17,control,Saugzugstufe,,???,???,11,1,,0.1960784314,Stufe,,4
-17,control,Stokerantrieb ein,,???,???,12,1,,0 => 3 ???,,,4
-17,control,Stokerantrieb ein,,???,???,13,1,,0 => 232 ???,,,4
-17,control,Stokerantrieb ein,,???,???,14,1,,0 => 3 ???,,,4
-17,control,Stokerantrieb ein,,???,???,15,1,,0 => 232 ???,,,4
-16,sense,Klixon Raumaustragung,Pellet Suction Alarm,bit,,9,,1,,,,4
-16,sense,Füllstandssensor,,bit,,9,,2,,,,4
-16,sense,Klixon Stoker,,bit,,9,,3,,,,4
-16,sense,Endschalter BS Klappe,,bit,,9,,4,,,,4
-16,sense,Türkontakt,,bit,,9,,5,,,,4
-16,sense,Extern 2,,bit,,9,,6,,,,4
-16,sense,Extern 1,,bit,,9,,7,,,,4
-16,sense,Sicherheitsthermostat,,bit,,10,,0,,,,4
-16,sense,RFK Taste,,bit,,10,,1,,,,4
-16,sense,TÜB Stoker,,bit,,10,,2,,,,4
-16,sense,HK1 Vorlauf Temperatur,,int,1,11,2,,0.1,C,,4
-16,sense,Rücklauf Temperatur,Boiler Return Flow Temp,int,1,13,2,,0.1,C,,4
-16,sense,Boiler 0 Temperatur,Tank 0 Temp,int,1,15,2,,0.1,C,,4
-16,sense,KesselTemperatur,Boiler Temp,int,1,17,2,,0.1,C,,4
-16,sense,Puffer 2 (unten) Temperatur,Buffer 2 Bottom Temp,int,1,19,2,,0.1,C,,4
-16,sense,Puffer 1 (oben) Temperatur,Buffer 1 Top Temp,int,1,21,2,,0.1,C,,4
-16,sense,Außen Temperatur,Outdoor Temp,int,1,23,2,,0.1,C,,4
-16,sense,Rauchgas Temperatur,Exhaust Gas Temp,int,1,25,2,,0.1,C,,4
-16,sense,Kesselsteuergerät Temperatur,,int,1,27,2,,0.1,C,,4
-16,sense,HK1 Fernverstellung Temperatur,,int,1,29,2,,0.1,C,,4
-16,sense,HK2 Fernverstellung Temperatur,,int,1,31,2,,0.1,C,,4
-16,sense,HK2 Vorlauf Temperatur,,int,1,33,2,,0.1,C,,4
-48,sense,T_Vorlauf_HK0,,int,1,45,2,,0.1,C,,6
-48,sense,T_Ruecklauf_Kessel,Boiler Return Flow Temp,int,1,7,2,,0.1,C,,6
-48,sense,T_Boiler,,int,1,9,2,,0.1,C,,6
-48,sense,T_Kessel,Boiler Temp,int,1,11,2,,0.1,C,,6
-48,sense,T_Buffer_Down,,int,1,13,2,,0.1,C,,6
-48,sense,T_Puffer_Mitte,,int,1,29,2,,0.1,C,,6
-48,sense,T_Puffer_Oben,,int,1,15,2,,0.1,C,,6
-48,sense,T_Rauchgas,,int,1,39,2,,0.1,C,,6
-48,sense,T_Outside,,int,1,41,2,,0.1,C,,6
-48,sense,T_Room temp._actual,,int,1,43,2,,0.1,C,,6
-48,sense,T_room temp._setpoint,,int,1,49,2,,0.1,C,,6
-48,sense,Oxygen,,int,1,31,2,,0.1,C,,6
-49,control,Boiler_Main Relay,,bit,,1,,3,,,,6
-49,control,Pump_Boiler,Tank Pump On,bit,,1,,5,,,,6
-49,control,Pump_HK0,,bit,,3,,9,,,,6
-49,control,HK0_Mischer_UP,,bit,,3,,5,,,,6
-49,control,HK0_Mischer_ZU,,bit,,3,,6,,,,6
-17,control,Pumpe_Puffer,Buffer Pump On,bit,,4,,1,,,,7
-17,control,Pumpe_Boiler,Tank Pump On,bit,,1,,5,,,,7
-17,control,Pumpe_HK2,Loop 2 Pump On,bit,,1,,6,,,,7
-17,control,"Pumpe_HK1': ('b',1,7),",Loop 1 Pump On,bit,,1,,7,,,,7
-17,control,Ascheaustragung,Ash Removal On,bit,,2,,0,,,,7
-17,control,Cleaning On,,bit,,2,,1,,,,7
-17,control,HK2_Mischer,Loop 2 Mixer,bit,,2,,4,,,,7
-17,control,HK1_Mischer,,bit,,2,,6,,,,7
-17,control,Hauptrelais,,bit,,3,,4,,,,7
-17,control,Kessel_AN,Boiler On,bit,,15,,0,,,,7
-17,control,Raumaustragung,Pellet Suction On,bit,,3,,6,,,,7
-16,sense,T_Vorlauf_HK1,,int,,5,2,,0.1,C,,8
-16,sense,T_Ruecklauf_Kessel,Boiler Return Flow Temp,int,,7,2,,0.1,C,,8
-16,sense,T_Boiler,Tank Temp,int,,9,2,,0.1,C,,8
-16,sense,T_Kessel,Boiler Temp,int,,11,2,,0.1,C,,8
-16,sense,T_Puffer_Unten,,int,,13,2,,0.1,C,,8
-16,sense,T_Puffer_Oben,,int,,15,2,,0.1,C,,8
-16,sense,T_Aussen,Outdoor Temp,int,,17,2,,0.1,C,,8
-16,sense,T_Rauchgas,Exhaust Gas Temp,int,,19,2,,0.1,C,,8
-16,sense,T_Stokerkanal,,int,,29,2,,0.1,C,,8
-32,sense,Vorlauf Ist HK1,Loop 1 Out Flow Temp,int,,6,2,,0.1,C,"Easyfire 1, Comfort 3",9
-32,sense,Rücklauf Kessel,Boiler Return Flow Temp,int,,8,2,,0.1,C,"Easyfire 1, Comfort 3",9
-32,sense,Boilertemperatur,,int,,10,2,,0.1,C,"Easyfire 1, Comfort 3",9
-32,sense,Kesseltemperatur,,int,,12,2,,0.1,C,"Easyfire 1, Comfort 3",9
-32,sense,Puffertemperatur 2,,int,,14,2,,0.1,C,"Easyfire 1, Comfort 3",9
-32,sense,Puffertemperatur 1,,int,,16,2,,0.1,C,"Easyfire 1, Comfort 3",9
-32,sense,Aussentemperatur HK1,,int,,18,2,,0.1,C,"Easyfire 1, Comfort 3",9
-32,sense,Rauchgas,,int,,20,2,,0.1,C,"Easyfire 1, Comfort 3",9
-32,sense,Unterdruck,,int,,34,2,,0.001,mBar,"Easyfire 1, Comfort 3",9
-33,control,Kessel Hauptrelais,,bit,,1,,2,,,"Easyfire 1, Comfort 3",9
-33,control,HK1 Pumpe,Loop 1 Pump On,bit,,1,,5,,,"Easyfire 1, Comfort 3",9
-33,control,HK1 Mischer AN,Loop 1 Mixer Open,bit,,1,,7,,,"Easyfire 1, Comfort 3",9
-33,control,HK1 Mischer ZU,Loop 1 Mixer Closed,bit,,2,,0,,,"Easyfire 1, Comfort 3",9
-33,control,Boiler Pumpe,Tank Pump On,bit,,2,,5,,,"Easyfire 1, Comfort 3",9
-33,control,Puffer Pumpe,Buffer Pump On,bit,,2,,7,,,"Easyfire 1, Comfort 3",9
-33,control,Keine Stoerung,No Interference,bit,,3,,0,,,"Easyfire 1, Comfort 3",9
-33,control,Drehrost,Rotating Grate On,bit,,3,,6,,,"Easyfire 1, Comfort 3",9
-33,control,Cleaning On,Cleaning On,bit,,3,,7,,,"Easyfire 1, Comfort 3",9
-33,control,Raumaustragung Saugturbine,Pellet Suction On,bit,,4,,1,,,"Easyfire 1, Comfort 3",9
-33,control,Kessel Hauptschuetz,,bit,,9,,1,,,"Easyfire 1, Comfort 3",9
-32,sense,Aschebehaelter,Ash Can OK,bit,,3,,6,,,"Easyfire 1, Comfort 3",10
-32,sense,Hauptantriebimpuls,Heater Running,bit,,3,,7,,,"Easyfire 1, Comfort 3",10
-32,sense,Klixon Raumaustragung,Ash Clearing Alarm,bit,,4,,1,,,"Easyfire 1, Comfort 3",10
-32,sense,Füllstandssensor,Ash Grate Full,bit,,4,,2,,,"Easyfire 1, Comfort 3",10
-32,sense,Klixon Stoker,Igniter Alarm,bit,,4,,3,,,"Easyfire 1, Comfort 3",10
-32,sense,Endschalter BS Klappe,Endschalter BS Klappe,bit,,4,,4,,,"Easyfire 1, Comfort 3",10
-32,sense,Türkontakt,Door Contact,bit,,4,,5,,,"Easyfire 1, Comfort 3",10
-32,sense,Extern 2,Extern 2,bit,,4,,6,,,"Easyfire 1, Comfort 3",10
-32,sense,Extern 1,Extern 1,bit,,4,,7,,,"Easyfire 1, Comfort 3",10
-32,sense,Sicherheitsthermostat,Safety Thermostat,bit,,5,,0,,,"Easyfire 1, Comfort 3",10
-32,sense,RFK Taste,RFK Button,bit,,5,,1,,,"Easyfire 1, Comfort 3",10
-32,sense,TÜB Stoker,TÜB Ignition,bit,,5,,2,,,"Easyfire 1, Comfort 3",10
-32,sense,HK1 Vorlauf Temperatur,Loop 1 Out Temp,int,1,6,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,Rücklauf Temperatur,Heater Return Temp,int,1,8,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,Boiler 0 Temperatur,Tank 0 Temp,int,1,10,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,Kessel Temperatur,Heater Temp,int,1,12,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,Puffer 2 (unten) Temperatur,Buffer 1 Temp,int,1,14,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,Puffer 1 (oben) Temperatur,Buffer 2 Temp,int,1,16,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,Außen Temperatur,Outside Temp,int,1,18,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,Rauchgastemperatur,Exhaust Temp,int,1,20,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,Proztemperatur,CPU Temp,int,1,22,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,HK1 Fernverstellung Temperatur,Loop 1 Remote Adjustment Temp,int,1,24,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,HK2 Fernverstellung Temperatur,Loop 2 Remote Adjustment Temp,int,1,26,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,,Loop 2 Out Temp,int,1,28,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,,Photodiode,int,1,32,2,,0.1,C,"Easyfire 1, Comfort 3",10
-32,sense,,Pressure,int,1,34,2,,0.001,mBar,"Easyfire 1, Comfort 3",10
-32,sense,Drehzahl Saugzug,Suction Speed,int,0,69,2,,0.6,rpm,"Easyfire 1, Comfort 3",10
-32,sense,Drehzahl Luefter,Fan Speed,int,0,71,2,,0.6,rpm,"Easyfire 1, Comfort 3",10
-33,control,,Heater Power On,bit,,1,,2,,,"Easyfire 1, Comfort 3",10
-33,control,,Loop 1 Pumping,bit,,1,,5,,,"Easyfire 1, Comfort 3",10
-33,control,,Loop 1 Mixer Opened,bit,,1,,7,,,"Easyfire 1, Comfort 3",10
-33,control,,Loop 1 Mixer Closed,bit,,2,,0,,,"Easyfire 1, Comfort 3",10
-33,control,,RLA Valve State,bit,,2,,3,,,"Easyfire 1, Comfort 3",10
-33,control,,Tank 0 Pumping,bit,,2,,5,,,"Easyfire 1, Comfort 3",10
-33,control,,Buffer Pumping,bit,,2,,7,,,"Easyfire 1, Comfort 3",10
-33,control,Keine Stoerung,No Interference State,bit,,3,,0,,,"Easyfire 1, Comfort 3",10
-33,control,,Ignition State,bit,,3,,2,,,"Easyfire 1, Comfort 3",10
-33,control,Drehrost,Ash Grate Revolving,bit,,3,,6,,,"Easyfire 1, Comfort 3",10
-33,control,Reinigung,Cleaning,bit,,3,,7,,,"Easyfire 1, Comfort 3",10
-33,control,Raumaustragung Saugturbine,Ash Clearing Fan,bit,,4,,1,,,"Easyfire 1, Comfort 3",10
-33,control,Saugzug,Sunction,bit,,4,,5,,,"Easyfire 1, Comfort 3",10
-33,control,Hauptantrieb,Heater Active,bit,,5,,0,,,"Easyfire 1, Comfort 3",10
-33,control,Pumpe Puffer,Buffer 0 Pumping,int,0,8,1,,0.3921568627,%,"Easyfire 1, Comfort 3",10
-33,control,Heater Hauptschuetz,Heater Main Contact On,bit,,9,,1,,,"Easyfire 1, Comfort 3",10
-33,control,Raumaustragung,Ash Clearing,bit,,9,,2,,,"Easyfire 1, Comfort 3",10
-33,control,Hauptantriebtakt,Main Drive Cycle Time,int,0,10,2,,10,msec,"Easyfire 1, Comfort 3",10
-33,control,Hauptantrieb Laufzeit,Main Drive Time,int,0,12,2,,10,msec,"Easyfire 1, Comfort 3",10
-33,control,Kesselleistung,Heater Output,int,0,13,1,,1,%,"Easyfire 1, Comfort 3",10
-33,control,Zuendung,Ignition,bit,,16,,2,,,"Easyfire 1, Comfort 3",10
-64,sense,,Loop 4 Out Temp,int,1,19,2,,0.1,C,"Easyfire 1, Comfort 3",10
-64,sense,,Loop 3 Out Temp,int,1,19,2,,0.1,C,"Easyfire 1, Comfort 3",10
+message_id,message_type,key,name_de,name_en,type,signed,offset,length,bit,scale,units,sensor_class,device_class,appliance,source
+33,control,buffer_pump,Pumpepuffer,Buffer Pump,int,0,8,1,,0.3921568627,,measurement,,"Easyfire 2, Comfort 3",1
+33,control,ignition_on,Zuendung,Ignition On,bit,,16,,2,,,measurement,,"Easyfire 2, Comfort 3",1
+33,control,,KeineStoerung,No Interference,bit,,3,,0,,,measurement,,"Easyfire 2, Comfort 3",1
+33,control,cleaning_on,Reinigung,Cleaning On,bit,,3,,7,,,measurement,,"Easyfire 2, Comfort 3",1
+33,control,rotating_grate_on,Drehrost,Rotating Grate On,bit,,3,,6,,,measurement,,"Easyfire 2, Comfort 3",1
+33,control,ash_clearing_on,Raumaustragung,Ash Clearing On,bit,,9,,2,,,measurement,,"Easyfire 2, Comfort 3",1
+33,control,main_drive_run_time,Hauptantrieb,Main Drive Run Time,int,0,12,2,,10,ms,measurement,duration,"Easyfire 2, Comfort 3",1
+33,control,main_drive_cycle_time,Hauptantriebtakt,Main Drive Cycle Time,int,0,10,2,,10,ms,measurement,duration,"Easyfire 2, Comfort 3",1
+32,sense,photodiode,photo,Photodiode,int,1,32,2,,,,measurement,,"Easyfire 2, Comfort 3",1
+32,sense,boiler_temp,Kesseltemperatur,Boiler Temp,int,1,12,2,,0.1,°C,measurement,temperature,"Easyfire 2, Comfort 3",1
+32,sense,exhaust_gas_temp,Rauchgastemperatur,Exhaust Gas Temp,int,1,20,2,,0.1,°C,measurement,temperature,"Easyfire 2, Comfort 3",1
+32,sense,cpu_temp,Proztemperatur,CPU Temp,int,1,22,2,,0.1,°C,measurement,temperature,"Easyfire 2, Comfort 3",1
+32,sense,pressure,Unterdruck,pressure,int,1,34,2,,0.1,mbar,measurement,pressure,"Easyfire 2, Comfort 3",1
+32,sense,,Saugzug,,int,0,69,2,,0.6,,measurement,,"Easyfire 2, Comfort 3",1
+32,sense,,Geblaese,,int,0,71,2,,0.6,,measurement,,"Easyfire 2, Comfort 3",1
+32,sense,,ext,,bit,,4,,7,,,measurement,,"Easyfire 2, Comfort 3",1
+32,sense,main_drive_on,Hauptantriebimpuls,Heater Running,bit,,3,,7,,,measurement,,"Easyfire 2, Comfort 3",1
+16,sense,loop_1_out_temp,T_Vorlauf_HK1,Loop 1 Out Flow Temp,int,1,5,2,,0.1,°C,measurement,temperature,,2
+16,sense,boiler_return_temp,T_Ruecklauf_Kessel,Boiler Return Flow Temp,int,1,7,2,,0.1,°C,measurement,temperature,,2
+16,sense,tank_temp,T_Boiler,Tank Temp,int,1,9,2,,0.1,°C,measurement,temperature,,2
+16,sense,boiler_temp,T_Kessel,Boiler Temp,int,1,11,2,,0.1,°C,measurement,temperature,,2
+16,sense,outdoor_temp,T_Outside,Outdoor Temp,int,1,17,2,,0.1,°C,measurement,temperature,,2
+16,sense,exhaust_gas_temp,T_Rauchgas,Exhaust Gas Temp,int,1,19,2,,0.1,°C,measurement,temperature,,2
+16,sense,,T_Control,,int,1,21,2,,0.1,°C,measurement,temperature,,2
+16,sense,ignition_tube_temp,T_Stokerkanal,,int,1,29,2,,0.1,°C,measurement,temperature,,2
+17,control,ash_can_ok,Aschebehaelter,Ash Can OK,bit,,3,6,,,,measurement,,,2
+17,control,pellet_level_ok,Pellet_Vorrat,Pellet Stock OK,bit,,4,3,,,,measurement,,,2
+17,control,,Brandschutzklappe,,bit,,1,1,,,,measurement,,,2
+17,control,cleaning_on,Reinigung,Cleaning On,bit,,2,1,,,,measurement,,,2
+17,control,alarm_2,Alarm2,Alarm 2,bit,,1,2,,,,measurement,,,2
+17,control,alarm_1,Alarm1,Alarm 1,bit,,1,3,,,,measurement,,,2
+17,control,tank_pump_on,Boiler_Pumpe,Tank Pump On,bit,,1,5,,,,measurement,,,2
+17,control,loop_1_pump_on,HK1_Pumpe,Loop 1 Pump On,bit,,1,7,,,,measurement,,,2
+17,control,ash_clearing_on,Ascheaustragung,Ash Clearing On,bit,,2,0,,,,measurement,,,2
+17,control,cleaning_on,,Cleaning On,bit,,2,1,,,,measurement,,,2
+17,control,loop_1_mixer_on,HK1_Mischer,Loop 1 Mixer,bit,,2,6,,,,measurement,,,2
+17,control,,Hauptrelais,,bit,,3,4,,,,measurement,,,2
+17,control,,Raumaustragung,Ash Clearing On,bit,,3,6,,,,measurement,,,2
+17,control,,Kessel_AN,Boiler On,bit,,15,0,,,,measurement,,,2
+33,control,,Kesselleistung,,int,0,13,1,,1,,measurement,,"Easyfire 1, Comfort 3",3
+17,control,,Zündung,Ignition On,bit,,6,,0,,,measurement,,,4
+17,control,,Brandschutzklappe,,bit,,6,,1,,,measurement,,,4
+17,control,alarm_2,Alarm 2,Alarm 2,bit,,6,,2,,,measurement,,,4
+17,control,alarm_1,Alarm 1,Alarm 1,bit,,6,,3,,,measurement,,,4
+17,control,,Leistung,,bit,,6,,4,,,measurement,,,4
+17,control,tank_0_pump_on,Boiler 0 Pumpe,Tank 0 Pump On,bit,,6,,5,,,measurement,,,4
+17,control,loop_2_pump_on,HK2 Pumpe,Loop 2 Pump On,bit,,6,,6,,,measurement,,,4
+17,control,loop_1_pump_on,HK1 Pumpe,Loop 1 Pump On,bit,,6,,7,,,measurement,,,4
+17,control,ash_clearing_on,Ascheaustragung,Ash Clearing On,bit,,7,,0,,,measurement,,,4
+17,control,cleaning_on,Cleaning On,,bit,,7,,1,,,measurement,,,4
+17,control,,Rücklaufmischer ein,Boiler Return Mixer Open,bit,,7,,2,,,measurement,,,4
+17,control,,Rücklaufmischer zu,Boiler Return Mixer Closed,bit,,7,,3,,,measurement,,,4
+17,control,,HK2 Mischer ein,Loop 2 Mixer Open,bit,,7,,4,,,measurement,,,4
+17,control,,HK2 Mischer zu,Loop 2 Mixer Closed,bit,,7,,5,,,measurement,,,4
+17,control,,HK1 Mischer ein,Loop 1 Mixer Open,bit,,7,,6,,,measurement,,,4
+17,control,,HK1 Mischer zu,Loop 1 Mixer Closed,bit,,7,,7,,,measurement,,,4
+17,control,,Hauptreials,,bit,,8,,4,,,measurement,,,4
+17,control,,Raumaustragung,Ash Clearing On,bit,,8,,5,,,measurement,,,4
+17,control,,Rücklaufpumpe,,???,???,9,1,,0.3921568627,%,measurement,,,4
+17,control,,Gebläsestufe,,???,???,10,1,,0.1960784314,Stufe,measurement,,,4
+17,control,,Saugzugstufe,,???,???,11,1,,0.1960784314,Stufe,measurement,,,4
+17,control,,Stokerantrieb ein,,???,???,12,1,,0 => 3 ???,,measurement,,,4
+17,control,,Stokerantrieb ein,,???,???,13,1,,0 => 232 ???,,measurement,,,4
+17,control,,Stokerantrieb ein,,???,???,14,1,,0 => 3 ???,,measurement,,,4
+17,control,,Stokerantrieb ein,,???,???,15,1,,0 => 232 ???,,measurement,,,4
+16,sense,,Klixon Raumaustragung,Pellet Suction Alarm,bit,,9,,1,,,measurement,,,4
+16,sense,,Füllstandssensor,,bit,,9,,2,,,measurement,,,4
+16,sense,,Klixon Stoker,,bit,,9,,3,,,measurement,,,4
+16,sense,,Endschalter BS Klappe,,bit,,9,,4,,,measurement,,,4
+16,sense,,Türkontakt,,bit,,9,,5,,,measurement,,,4
+16,sense,,Extern 2,,bit,,9,,6,,,measurement,,,4
+16,sense,,Extern 1,,bit,,9,,7,,,measurement,,,4
+16,sense,,Sicherheitsthermostat,,bit,,10,,0,,,measurement,,,4
+16,sense,,RFK Taste,,bit,,10,,1,,,measurement,,,4
+16,sense,,TÜB Stoker,,bit,,10,,2,,,measurement,,,4
+16,sense,,HK1 Vorlauf Temperatur,,int,1,11,2,,0.1,°C,measurement,temperature,,4
+16,sense,,Rücklauf Temperatur,Boiler Return Flow Temp,int,1,13,2,,0.1,°C,measurement,temperature,,4
+16,sense,,Boiler 0 Temperatur,Tank 0 Temp,int,1,15,2,,0.1,°C,measurement,temperature,,4
+16,sense,,KesselTemperatur,Boiler Temp,int,1,17,2,,0.1,°C,measurement,temperature,,4
+16,sense,,Puffer 2 (unten) Temperatur,Buffer 2 Bottom Temp,int,1,19,2,,0.1,°C,measurement,temperature,,4
+16,sense,,Puffer 1 (oben) Temperatur,Buffer 1 Top Temp,int,1,21,2,,0.1,°C,measurement,temperature,,4
+16,sense,,Außen Temperatur,Outdoor Temp,int,1,23,2,,0.1,°C,measurement,temperature,,4
+16,sense,,Rauchgas Temperatur,Exhaust Gas Temp,int,1,25,2,,0.1,°C,measurement,temperature,,4
+16,sense,,Kesselsteuergerät Temperatur,,int,1,27,2,,0.1,°C,measurement,temperature,,4
+16,sense,,HK1 Fernverstellung Temperatur,,int,1,29,2,,0.1,°C,measurement,temperature,,4
+16,sense,,HK2 Fernverstellung Temperatur,,int,1,31,2,,0.1,°C,measurement,temperature,,4
+16,sense,,HK2 Vorlauf Temperatur,,int,1,33,2,,0.1,°C,measurement,temperature,,4
+48,sense,,T_Vorlauf_HK0,,int,1,45,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Ruecklauf_Kessel,Boiler Return Flow Temp,int,1,7,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Boiler,,int,1,9,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Kessel,Boiler Temp,int,1,11,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Buffer_Down,,int,1,13,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Puffer_Mitte,,int,1,29,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Puffer_Oben,,int,1,15,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Rauchgas,,int,1,39,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Outside,,int,1,41,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_Room temp._actual,,int,1,43,2,,0.1,°C,measurement,temperature,,6
+48,sense,,T_room temp._setpoint,,int,1,49,2,,0.1,°C,measurement,temperature,,6
+48,sense,,Oxygen,,int,1,31,2,,0.1,°C,measurement,temperature,,6
+49,control,,Boiler_Main Relay,,bit,,1,,3,,,measurement,,,6
+49,control,,Pump_Boiler,Tank Pump On,bit,,1,,5,,,measurement,,,6
+49,control,,Pump_HK0,,bit,,3,,9,,,measurement,,,6
+49,control,,HK0_Mischer_UP,,bit,,3,,5,,,measurement,,,6
+49,control,,HK0_Mischer_ZU,,bit,,3,,6,,,measurement,,,6
+17,control,,Pumpe_Puffer,Buffer Pump On,bit,,4,,1,,,measurement,,,7
+17,control,,Pumpe_Boiler,Tank Pump On,bit,,1,,5,,,measurement,,,7
+17,control,,Pumpe_HK2,Loop 2 Pump On,bit,,1,,6,,,measurement,,,7
+17,control,,Pumpe_HK1,Loop 1 Pump On,bit,,1,,7,,,measurement,,,7
+17,control,,Ascheaustragung,Ash Removal On,bit,,2,,0,,,measurement,,,7
+17,control,,Cleaning On,,bit,,2,,1,,,measurement,,,7
+17,control,,HK2_Mischer,Loop 2 Mixer,bit,,2,,4,,,measurement,,,7
+17,control,,HK1_Mischer,,bit,,2,,6,,,measurement,,,7
+17,control,,Hauptrelais,,bit,,3,,4,,,measurement,,,7
+17,control,,Kessel_AN,Boiler On,bit,,15,,0,,,measurement,,,7
+17,control,,Raumaustragung,Ash Clearing On,bit,,3,,6,,,measurement,,,7
+16,sense,,T_Vorlauf_HK1,,int,,5,2,,0.1,°C,measurement,temperature,,8
+16,sense,,T_Ruecklauf_Kessel,Boiler Return Flow Temp,int,,7,2,,0.1,°C,measurement,temperature,,8
+16,sense,,T_Boiler,Tank Temp,int,,9,2,,0.1,°C,measurement,temperature,,8
+16,sense,,T_Kessel,Boiler Temp,int,,11,2,,0.1,°C,measurement,temperature,,8
+16,sense,,T_Puffer_Unten,,int,,13,2,,0.1,°C,measurement,temperature,,8
+16,sense,,T_Puffer_Oben,,int,,15,2,,0.1,°C,measurement,temperature,,8
+16,sense,,T_Aussen,Outdoor Temp,int,,17,2,,0.1,°C,measurement,temperature,,8
+16,sense,,T_Rauchgas,Exhaust Gas Temp,int,,19,2,,0.1,°C,measurement,temperature,,8
+16,sense,,T_Stokerkanal,,int,,29,2,,0.1,°C,measurement,temperature,,8
+32,sense,,Vorlauf Ist HK1,Loop 1 Out Flow Temp,int,,6,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",9
+32,sense,,Rücklauf Kessel,Boiler Return Flow Temp,int,,8,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",9
+32,sense,,Boilertemperatur,,int,,10,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",9
+32,sense,,Kesseltemperatur,,int,,12,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",9
+32,sense,,Puffertemperatur 2,,int,,14,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",9
+32,sense,,Puffertemperatur 1,,int,,16,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",9
+32,sense,,Aussentemperatur HK1,,int,,18,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",9
+32,sense,,Rauchgas,,int,,20,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",9
+32,sense,pressure,Unterdruck,Pressure,int,,34,2,,0.001,mbar,measurement,pressure,"Easyfire 1, Comfort 3",9
+33,control,,Kessel Hauptrelais,,bit,,1,,2,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,HK1 Pumpe,Loop 1 Pump On,bit,,1,,5,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,HK1 Mischer AN,Loop 1 Mixer Open,bit,,1,,7,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,HK1 Mischer ZU,Loop 1 Mixer Closed,bit,,2,,0,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,Boiler Pumpe,Tank Pump On,bit,,2,,5,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,Puffer Pumpe,Buffer Pump On,bit,,2,,7,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,Keine Stoerung,No Interference,bit,,3,,0,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,Drehrost,Rotating Grate On,bit,,3,,6,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,Cleaning On,Cleaning On,bit,,3,,7,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,Raumaustragung Saugturbine,Ash Clearing On,bit,,4,,1,,,measurement,,"Easyfire 1, Comfort 3",9
+33,control,,Kessel Hauptschuetz,,bit,,9,,1,,,measurement,,"Easyfire 1, Comfort 3",9
+32,sense,,Aschebehaelter,Ash Can OK,bit,,3,,6,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,main_drive_on,Hauptantriebimpuls,Heater Running,bit,,3,,7,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,Klixon Raumaustragung,Ash Clearing Alarm,bit,,4,,1,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,Füllstandssensor,Ash Grate Full,bit,,4,,2,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,Klixon Stoker,Igniter Alarm,bit,,4,,3,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,Endschalter BS Klappe,Endschalter BS Klappe,bit,,4,,4,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,Türkontakt,Door Contact,bit,,4,,5,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,Extern 2,Extern 2,bit,,4,,6,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,Extern 1,Extern 1,bit,,4,,7,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,Sicherheitsthermostat,Safety Thermostat,bit,,5,,0,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,RFK Taste,RFK Button,bit,,5,,1,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,TÜB Stoker,TÜB Ignition,bit,,5,,2,,,measurement,,"Easyfire 1, Comfort 3",10
+32,sense,,HK1 Vorlauf Temperatur,Loop 1 Out Temp,int,1,6,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,Rücklauf Temperatur,Heater Return Temp,int,1,8,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,Boiler 0 Temperatur,Tank 0 Temp,int,1,10,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,Kessel Temperatur,Heater Temp,int,1,12,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,Puffer 2 (unten) Temperatur,Buffer 1 Temp,int,1,14,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,Puffer 1 (oben) Temperatur,Buffer 2 Temp,int,1,16,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,Außen Temperatur,Outside Temp,int,1,18,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,Rauchgastemperatur,Exhaust Temp,int,1,20,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,Proztemperatur,CPU Temp,int,1,22,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,HK1 Fernverstellung Temperatur,Loop 1 Remote Adjustment Temp,int,1,24,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,HK2 Fernverstellung Temperatur,Loop 2 Remote Adjustment Temp,int,1,26,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,,,Loop 2 Out Temp,int,1,28,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,photodiode,,Photodiode,int,1,32,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+32,sense,pressure,Unterdruck,Pressure,int,1,34,2,,0.001,mbar,measurement,pressure,"Easyfire 1, Comfort 3",10
+32,sense,,Drehzahl Saugzug,Suction Speed,int,0,69,2,,0.6,rpm,measurement,speed,"Easyfire 1, Comfort 3",10
+32,sense,,Drehzahl Luefter,Fan Speed,int,0,71,2,,0.6,rpm,measurement,speed,"Easyfire 1, Comfort 3",10
+33,control,,,Heater Power On,bit,,1,,2,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,loop_1_pump_on,,Loop 1 Pump On,bit,,1,,5,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,,,Loop 1 Mixer Open,bit,,1,,7,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,,,Loop 1 Mixer Closed,bit,,2,,0,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,,,RLA Valve State,bit,,2,,3,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,tank_0_pump_on,,Tank 0 Pump On,bit,,2,,5,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,buffer_pump_on,,Buffer Pump On,bit,,2,,7,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,,Keine Stoerung,No Interference State,bit,,3,,0,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,,,Ignition State,bit,,3,,2,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,,Drehrost,Ash Grate Revolving,bit,,3,,6,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,ash_clearing_on,Reinigung,Ash Clearing On,bit,,3,,7,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,ash_clearing_fan_on,Raumaustragung Saugturbine,Ash Clearing Fan On,bit,,4,,1,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,,Saugzug,Sunction,bit,,4,,5,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,,Hauptantrieb,Heater Active,bit,,5,,0,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,buffer_0_pumping,Pumpe Puffer,Buffer 0 Pumping,int,0,8,1,,0.3921568627,%,measurement,,"Easyfire 1, Comfort 3",10
+33,control,heater_main_contact_on,Heater Hauptschuetz,Heater Main Contact On,bit,,9,,1,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,ash_clearing_on,Raumaustragung,Ash Clearing On,bit,,9,,2,,,measurement,,"Easyfire 1, Comfort 3",10
+33,control,main_drive_cycle_time,Hauptantriebtakt,Main Drive Cycle Time,int,0,10,2,,10,ms,measurement,duration,"Easyfire 1, Comfort 3",10
+33,control,main_drive_run_time,Hauptantrieb Laufzeit,Main Drive Time,int,0,12,2,,10,ms,measurement,duration,"Easyfire 1, Comfort 3",10
+33,control,boiler_output,Kesselleistung,Boiler Output,int,0,13,1,,1,%,measurement,,"Easyfire 1, Comfort 3",10
+33,control,ignition_on,Zuendung,Ignition On,bit,,16,,2,,,measurement,,"Easyfire 1, Comfort 3",10
+64,sense,loop_4_out_temp,,Loop 4 Out Temp,int,1,19,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+64,sense,loop_3_out_temp,,Loop 3 Out Temp,int,1,19,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10

@@ -43,9 +43,9 @@ def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, messa
             row_source = int(row['source'])
             if (row_source == source and row_message_id in message_ids):
                 if row['type'] == 'bit':
-                    sig = ('b', int(row['offset']), int(row['bit']))
+                    sig = ('b', int(row['offset']), int(row['bit']), row['key'], row['sensor_class'] ,row['device_class'])
                 elif row['type'] == 'int':
-                    sig = ('s' if int(row['signed']) else 'u', int(row['offset']), int(row['length']), float(row['scale']), row['units'] )
+                    sig = ('s' if int(row['signed']) else 'u', int(row['offset']), int(row['length']), float(row['scale']), row['units'], row['key'], row['sensor_class'] ,row['device_class'] )
                 else:
                     continue
                 signal_maps[row_message_id][row['name_en']] = sig
