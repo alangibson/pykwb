@@ -1,7 +1,6 @@
 import socket
-import time
-import threading
 import serial
+import struct
 
 class SerialByteReader:
     """Reads bytes from a serial TTY"""

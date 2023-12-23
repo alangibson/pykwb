@@ -27,12 +27,11 @@ Support for KWB Easyfire central heating units.
 """
 
 import logging
-import time
-import threading
 import csv
 import os
 from datetime import datetime, timedelta
-from readers import SerialByteReader, TCPByteReader, FileByteReader
+from .readers import SerialByteReader, TCPByteReader, FileByteReader
+
 
 def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, message_ids=[32,33,64,65]):
     signal_maps = [{} for i in range(255)]
@@ -51,6 +50,7 @@ def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, messa
                     continue
                 signal_maps[row_message_id][row['name_en']] = sig
     return signal_maps
+
 
 PROP_LOGLEVEL_TRACE = 5
 PROP_LOGLEVEL_DEBUG = 4
@@ -453,7 +453,7 @@ class KWBMessageStreamLogkwb():
 
     def _read_message(self, received_byte):
         self._read_message_length(received_byte) # current byte: Message Length
-        self._read_message_id() # next byte: Message ID     
+        self._read_message_id() # next byte: Message ID
         self._read_message_counter() # next byte: Message Counter
         self._read_payload()
 

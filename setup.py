@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name = 'pykwb',
-    version = '0.0.10',
+    version = '0.1.0',
     packages = ['pykwb'],
     install_requires = ['pyserial>=3.0.1'],
-    description = 'KWB Easyfire serial library, for inclusion into homeassistant',
+    description = 'KWB library, for inclusion into HomeAssistant',
     author = 'Markus Peter',
     author_email = 'mpeter@emdev.de',
     url = 'https://github.com/bimbar/pykwb.git',
