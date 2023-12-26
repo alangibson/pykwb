@@ -418,6 +418,7 @@ class KWBMessageStream:
         # If there is no timeout specified, never time out
         timeout_at = datetime.now() + timedelta(0, timeout) if timeout else None
 
+        requested_message_ids = [*message_ids] if message_ids else message_ids
         seen_message_ids = []
         for message in self.read_forever():
             
@@ -425,19 +426,19 @@ class KWBMessageStream:
             if timeout_at and datetime.now() > timeout_at:
                 return False
             
-            if not message_ids or len(message_ids) == 0:
+            if not requested_message_ids or len(requested_message_ids) == 0:
                 # seen message ids are irrelevant, so just yield
                 yield message
-            elif (message_ids and len(message_ids) > 0) and message.message_id not in seen_message_ids:
+            elif (requested_message_ids and len(requested_message_ids) > 0) and message.message_id not in seen_message_ids:
                 # No message ids, so just yield each message once  until timeout
                 seen_message_ids.append(message.message_id)
                 yield message
-            elif message_ids and message.message_id in message_ids:
-                message_ids.remove(message.message_id)
+            elif requested_message_ids and message.message_id in requested_message_ids:
+                requested_message_ids.remove(message.message_id)
                 seen_message_ids.append(message.message_id)
                 yield message
 
-            if message_ids and len(message_ids) == 0:
+            if requested_message_ids and len(requested_message_ids) == 0:
                 return
 
     def read_data(self, message_ids=[], timeout=None):
@@ -497,8 +498,8 @@ class KWBMessageStream:
             
 
     def read_data_once(self, message_ids, timeout):
-        if not message_ids or not timeout or len(message_ids) == 0:
-            raise NotImplementedError('read_data_once() requires message ids and a timeout')
+        if not message_ids or len(message_ids) == 0 or not timeout:
+            raise NotImplementedError(f'read_data_once() requires message ids and a timeout: message_ids={message_ids} timeout={timeout}')
         datas = [d for d in self.read_data(message_ids, timeout)]
         return datas[-1]
     
