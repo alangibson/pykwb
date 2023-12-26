@@ -188,9 +188,9 @@ message_id,message_type,key,name_de,name_en,type,signed,offset,length,bit,scale,
 33,control,buffer_0_pumping,Pumpe Puffer,Buffer 0 Pumping,int,0,8,1,,0.3921568627,%,measurement,,"Easyfire 1, Comfort 3",10
 33,control,heater_main_contact_on,Heater Hauptschuetz,Heater Main Contact On,bit,,9,,1,,,measurement,,"Easyfire 1, Comfort 3",10
 33,control,ash_clearing_on,Raumaustragung,Ash Clearing On,bit,,9,,2,,,measurement,,"Easyfire 1, Comfort 3",10
-33,control,main_drive_cycle_time,Hauptantriebtakt,Main Drive Cycle Time,int,0,10,2,,10,ms,measurement,duration,"Easyfire 1, Comfort 3",10
-33,control,main_drive_run_time,Hauptantrieb Laufzeit,Main Drive Time,int,0,12,2,,10,ms,measurement,duration,"Easyfire 1, Comfort 3",10
+33,control,main_drive_cycle_time,Hauptantriebtakt,Main Drive Cycle Time,int,0,10,2,,0.1,sec,measurement,duration,"Easyfire 1, Comfort 3",10
+33,control,main_drive_run_time,Hauptantrieb Laufzeit,Main Drive Time,int,0,12,2,,1,sec,measurement,duration,"Easyfire 1, Comfort 3",10
 33,control,boiler_output,Kesselleistung,Boiler Output,int,0,13,1,,1,%,measurement,,"Easyfire 1, Comfort 3",10
 33,control,ignition_on,Zuendung,Ignition On,bit,,16,,2,,,measurement,,"Easyfire 1, Comfort 3",10
 64,sense,loop_4_out_temp,,Loop 4 Out Temp,int,1,19,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
-64,sense,loop_3_out_temp,,Loop 3 Out Temp,int,1,19,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10
+64,sense,loop_3_out_temp,,Loop 3 Out Temp,int,1,21,2,,0.1,°C,measurement,temperature,"Easyfire 1, Comfort 3",10

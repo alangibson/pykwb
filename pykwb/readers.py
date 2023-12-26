@@ -22,13 +22,15 @@ class SerialByteReader:
 class TCPByteReader:
     """Reads bytes over TCP connection"""
 
-    def __init__(self, ip: str, port: int):
+    def __init__(self, ip: str, port: int, timeout: int = 5):
         self._ip = ip
         self._port = port
         self._socket = None
+        self._timeout = timeout
     
     def open(self):
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.settimeout(self._timeout)
         self._socket.connect((self._ip, self._port))
 
     def read(self) -> bytes:
