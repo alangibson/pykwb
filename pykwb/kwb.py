@@ -81,7 +81,7 @@ _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 
-def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, message_ids=[32,33,64,65]):
+def load_signal_maps(path='config/KWB Protocol - Messages.csv', source=10, message_ids=[0,32,33,64,65]):
     signal_maps = [{} for i in range(255)]
     filepath = os.path.join(os.path.dirname(__file__), path)
     with open(filepath, encoding='utf-8') as csvfile:
@@ -291,10 +291,11 @@ class KWBMessageStream:
         self.anData = bytearray(0)
         self.nChecksum = 0
         self.oMsg = None
-        self.last_timestamp_msec = last_values.get('last_timestamp', time.time_ns() / 1000000)
-        self.run_time_sec = last_values.get('boiler_run_time', 0.0)
-        self.energy_kWh = last_values.get('energy_output', 0.0)
-        self.pellet_consumption_kg = last_values.get('pellet_consumption', 0.0)
+        
+        self.last_timestamp_msec = last_values.get('last_timestamp') or time.time_ns() / 1000000
+        self.run_time_sec = last_values.get('boiler_run_time') or 0.0
+        self.energy_kWh = last_values.get('energy_output') or 0.0
+        self.pellet_consumption_kg = last_values.get('pellet_consumption') or 0.0
 
     def _found_header(self):
         # header found

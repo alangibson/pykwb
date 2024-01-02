@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name = 'pykwb',
-    version = '0.1.2',
+    version = '0.1.3',
     packages = ['pykwb'],
     install_requires = ['pyserial>=3.0.1'],
     description = 'KWB library, for inclusion into HomeAssistant',
