@@ -451,6 +451,7 @@ class KWBMessageStream:
        
         # boiler_output is decimal percentage of boiler_nominal_power_kW
         boiler_output = 0.0
+        boiler_power_kW = 0.0
 
         data = {}
         for message in self.read_messages(message_ids, timeout):
@@ -474,10 +475,12 @@ class KWBMessageStream:
             if boiler_output > 0:
                 boiler_on = 1
                 self.run_time_sec += deltat_sec
+                # Current boiler power output
+                boiler_power_kW = boiler_output * boiler_nominal_power_kW
                 # Calculate aggregates if heater constants are set
                 if boiler_nominal_power_kW and pellet_nominal_energy_kwh_kg:
                     # Total energy in kWh that has been produced
-                    delta_energy_kWh = deltat_hr * boiler_output * boiler_nominal_power_kW
+                    delta_energy_kWh = deltat_hr * boiler_power_kW
                     self.energy_kWh += delta_energy_kWh
                     # Pellet consumption_[kg] = Sum(dt_[s] * Real_boiler output_[%] * Boiler_nominal power_[kW]) / (pellet_nominal energy[kwh/kg] * efficiency)
                     self.pellet_consumption_kg += delta_energy_kWh / ( pellet_nominal_energy_kwh_kg * efficiency )
@@ -489,8 +492,9 @@ class KWBMessageStream:
             data.update({
                 'boiler_on': boiler_on,
                 'boiler_nominal_power': boiler_nominal_power_kW,
+                'boiler_power': boiler_power_kW,
                 'boiler_run_time': self.run_time_sec,
-                'energy_output': self.energy_kWh,
+                'boiler_energy': self.energy_kWh,
                 'pellet_consumption': self.pellet_consumption_kg,
                 'last_timestamp': self.last_timestamp_msec
             } )
