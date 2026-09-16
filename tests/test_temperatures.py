@@ -1,9 +1,11 @@
 """Regression coverage for boiler temperature layouts and wire framing."""
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from pykwb.kwb import KWBEasyfire, PROP_MODE_FILE, PROP_MODE_TCP, PROP_PACKET_SENSE
+from pykwb.kwb import KWBEasyfire, PROP_MODE_FILE, PROP_MODE_TCP, PROP_PACKET_SENSE, PROP_PACKET_CTRL
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,16 +47,15 @@ class TemperatureTests(unittest.TestCase):
         with patch.object(reader, '_read_ord_byte', side_effect=lambda: next(stream)):
             self.assertEqual(reader._read_packet(), (PROP_PACKET_SENSE, 32, payload))
             mode, message_id, decoded = reader._read_packet()
-            self.assertEqual((mode, message_id, decoded), (1, 33, b'\x01' * 24))
+            self.assertEqual((mode, message_id, decoded), (PROP_PACKET_CTRL, 33, b'\x01' * 24))
 
     def test_recorded_boiler_layouts(self):
         cases = (
             ('kwb_17_16.txt', 16, 59,
-             [60.7, 53.1, 64.5, 59.0, 58.5, 63.5, 0.4, 64.5,
-              None, None, None, None, 34.1]),
+             [None] * 13),
             ('kwb_33_32.txt', 32, 62,
              [30.4, 77.5, 45.3, 74.1, None, None, 14.6, 73.1,
-              32.4, None, None, None, None]),
+              32.4, 19.8, 50.0, None, 3276.7]),
         )
         for filename, sense_id, count, expected in cases:
             with self.subTest(filename=filename):
@@ -85,7 +86,8 @@ class TemperatureTests(unittest.TestCase):
                 payload = b'\x02\x00\x02\x07'
                 stream = iter(truncated + frame(32, payload, sense=sense))
                 with patch.object(reader, '_read_ord_byte', side_effect=lambda: next(stream)):
-                    self.assertEqual(reader._read_packet(), (0 if sense else 1, 32, payload))
+                    packet_type = PROP_PACKET_SENSE if sense else PROP_PACKET_CTRL
+                    self.assertEqual(reader._read_packet(), (packet_type, 32, payload))
 
     def test_empty_and_short_payloads_do_not_crash_temperature_decoder(self):
         reader = self.make_reader()
@@ -110,7 +112,7 @@ class TemperatureTests(unittest.TestCase):
 
     def test_captured_short_control_frame_keeps_reader_running(self):
         reader = self.make_reader()
-        reader._decode_ctrl_packet(17, bytes((255, 255, 255)))
+        reader._decode_ctrl_packet(33, bytes((255, 255, 255)))
         flags_before = [sensor.value for sensor in reader._ctrl_sensor[1:]]
         payload = bytearray(32)
         payload[12:14] = b'\x02\xe5'
@@ -127,21 +129,58 @@ class TemperatureTests(unittest.TestCase):
 
         with patch.object(reader, '_read_ord_byte', side_effect=read_byte):
             reader.run()
-        self.assertEqual(reader._ctrl_sensor[0].value, bytes((27, 82)))
+        self.assertEqual(reader._ctrl_sensor[0].value, bytes((255, 255, 255)))
         self.assertEqual([sensor.value for sensor in reader._ctrl_sensor[1:]], flags_before)
         self.assertEqual(reader._sense_sensor[4].value, 74.1)
 
+    def test_control_flags_use_message_33_positions(self):
+        reader = self.make_reader()
+        positions = {
+            'Fire Damper': (0, 1),
+            'Alarm 2': (0, 2), 'Alarm 1': (0, 3),
+            'Ignition': (16, 2), 'Power': (1, 2), 'Boiler 0 Pump': (2, 5),
+            'Heating Circuit 1 Pump': (1, 5), 'Cleaning': (3, 7),
+            'Heating Circuit 1 Mixer On': (1, 7),
+            'Heating Circuit 1 Mixer Closed': (2, 0),
+            'Main Relais': (9, 1), 'Room Discharge': (9, 2),
+            'Heating Circuit 2 Pump': (1, 6), 'Ash Discharge': (3, 6),
+            'Return Mixer On': (2, 3), 'Return Mixer Closed': (2, 4),
+            'Heating Circuit 2 Mixer On': (2, 1),
+            'Heating Circuit 2 Mixer Closed': (2, 2),
+        }
+        # Walk every payload bit to detect wrong offsets and cross-talk.
+        for offset in range(24):
+            for bit in range(8):
+                payload = bytearray(24)
+                payload[offset] = 1 << bit
+                reader._decode_ctrl_packet(33, payload)
+                for sensor in reader._ctrl_sensor[1:]:
+                    position = positions.get(sensor.name)
+                    expected = None if position is None else int(position == (offset, bit))
+                    with self.subTest(sensor=sensor.name, offset=offset, bit=bit):
+                        self.assertEqual(sensor.value, expected)
+                        self.assertEqual(sensor.available, position is not None)
+
     def test_short_known_control_payloads_mark_missing_flags_unavailable(self):
         reader = self.make_reader()
-        for message_id in (17, 33):
-            for length in range(6):
-                with self.subTest(message_id=message_id, length=length):
-                    reader._decode_ctrl_packet(message_id, bytes((255,)) * 5)
-                    reader._decode_ctrl_packet(message_id, bytes(length))
-                    for sensor in reader._ctrl_sensor[1:]:
-                        present = sensor.index // 8 < length
-                        self.assertEqual(sensor.value, 0 if present else None)
-                        self.assertEqual(sensor.available, present)
+        offsets = {'Fire Damper': 0, 'Alarm 2': 0, 'Alarm 1': 0,
+                   'Ignition': 16, 'Power': 1, 'Boiler 0 Pump': 2,
+                   'Heating Circuit 1 Pump': 1, 'Cleaning': 3,
+                   'Heating Circuit 1 Mixer On': 1,
+                   'Heating Circuit 1 Mixer Closed': 2,
+                   'Main Relais': 9, 'Room Discharge': 9,
+                   'Heating Circuit 2 Pump': 1, 'Ash Discharge': 3,
+                   'Return Mixer On': 2, 'Return Mixer Closed': 2,
+                   'Heating Circuit 2 Mixer On': 2,
+                   'Heating Circuit 2 Mixer Closed': 2}
+        for length in range(25):
+            reader._decode_ctrl_packet(33, bytes((255,)) * 24)
+            reader._decode_ctrl_packet(33, bytes(length))
+            for sensor in reader._ctrl_sensor[1:]:
+                present = offsets.get(sensor.name, 255) < length
+                with self.subTest(sensor=sensor.name, length=length):
+                    self.assertEqual(sensor.value, 0 if present else None)
+                    self.assertEqual(sensor.available, present)
 
     def test_unrelated_messages_do_not_overwrite_boiler_temperatures(self):
         reader = self.make_reader()
@@ -150,6 +189,50 @@ class TemperatureTests(unittest.TestCase):
         reader._decode_sense_packet(32, payload)
         reader._decode_sense_packet(64, bytes(24))
         self.assertEqual(reader._sense_sensor[4].value, 74.1)
+
+    def test_unconfigured_packets_are_not_logged_or_decoded(self):
+        reader = KWBEasyfire(-1)
+        wire = iter(frame(87, bytes(24), sense=False)
+                    + frame(64, bytes(34))
+                    + frame(32, bytes(32))
+                    + frame(33, bytes(24), sense=False))
+
+        def read_byte():
+            try:
+                return next(wire)
+            except StopIteration:
+                raise EOFError from None
+
+        output = StringIO()
+        with redirect_stdout(output), \
+                patch.object(reader, '_read_ord_byte', side_effect=read_byte), \
+                patch.object(reader, '_decode_sense_packet') as sense, \
+                patch.object(reader, '_decode_ctrl_packet') as ctrl:
+            reader.run()
+        self.assertNotIn('Packet ID 87', output.getvalue())
+        self.assertNotIn('Packet ID 64', output.getvalue())
+        self.assertIn('Packet ID 32 SENSE', output.getvalue())
+        self.assertIn('Packet ID 33 CTRL', output.getvalue())
+        sense.assert_called_once_with(32, bytes(32))
+        ctrl.assert_called_once_with(33, bytes(24))
+
+    def test_only_explicit_message_ids_are_decoded(self):
+        reader = self.make_reader()
+        packets = [
+            (PROP_PACKET_SENSE, 16, bytes(40)),
+            (PROP_PACKET_CTRL, 17, bytes(24)),
+            (PROP_PACKET_SENSE, 64, bytes(34)),
+            (PROP_PACKET_CTRL, 65, bytes(8)),
+            (PROP_PACKET_SENSE, 32, bytes(32)),
+            (PROP_PACKET_CTRL, 33, bytes(24)),
+            EOFError(),
+        ]
+        with patch.object(reader, '_read_packet', side_effect=packets), \
+                patch.object(reader, '_decode_sense_packet') as sense, \
+                patch.object(reader, '_decode_ctrl_packet') as ctrl:
+            reader.run()
+        sense.assert_called_once_with(32, bytes(32))
+        ctrl.assert_called_once_with(33, bytes(24))
 
     def test_disconnected_sensor_clears_previous_reading(self):
         reader = self.make_reader()
