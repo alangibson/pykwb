@@ -99,6 +99,19 @@ class AsyncListeningTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.furnace(reader), 74.1)
         self.assertIsNone(reader._sensors[PROP_PACKET_CTRL][0].value)
 
+    async def test_message_64_updates_extension_temperatures(self):
+        reader, sender = self.tcp_reader()
+        payload = bytearray(23)
+        payload[19:21] = b'\x02\x5f'
+        payload[21:23] = b'\xff\xc9'
+        sender.sendall(self.temperature_frame() + frame(64, payload))
+        sender.shutdown(socket.SHUT_WR)
+        await reader.listen_forever()
+        values = {s.key: s.value for s in reader.get_sensors() if s.key}
+        self.assertEqual(values['loop_4_out_temp'], 60.7)
+        self.assertEqual(values['loop_3_out_temp'], -5.5)
+        self.assertEqual(self.furnace(reader), 74.1)
+
     async def test_serial_polling_and_timeout_restoration(self):
         class SerialInput:
             timeout = 5

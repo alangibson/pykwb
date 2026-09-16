@@ -3,7 +3,7 @@ import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from pykwb.kwb import KWBEasyfire, PROP_MODE_FILE, PROP_MODE_TCP, PROP_PACKET_SENSE, PROP_PACKET_CTRL, PROP_SENSOR_TEMPERATURE, PROP_SENSOR_FLAG
 
@@ -138,7 +138,7 @@ class TemperatureTests(unittest.TestCase):
         reader = self.make_reader()
         positions = [
             (1, 2), (1, 5), (1, 6), (1, 7), (2, 0), (2, 1), (2, 2),
-            (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (3, 0), (3, 0),
+            (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (3, 0),
             (3, 2), (3, 6), (3, 7), (3, 7), (4, 1), (4, 5), (5, 0),
             (9, 1), (9, 2), (16, 2),
         ]
@@ -178,10 +178,42 @@ class TemperatureTests(unittest.TestCase):
         reader._decode_sense_packet(64, bytes(24))
         self.assertEqual(next(s for s in reader.get_sensors() if s.key == 'heater_temp').value, 74.1)
 
+    def test_message_64_wire_decoding_and_missing_temperatures(self):
+        reader = self.make_reader()
+        payload = bytearray(23)
+        payload[19:21] = b'\x02\x5f'
+        payload[21:23] = b'\xff\xc9'
+        wire = iter(frame(64, payload))
+        with patch.object(reader, '_read_ord_byte', side_effect=lambda: next(wire)):
+            reader._decode_packet(*reader._read_packet())
+        sensors = {s.key: s for s in reader.get_sensors() if s.key}
+        loop_4 = sensors['loop_4_out_temp']
+        loop_3 = sensors['loop_3_out_temp']
+        self.assertEqual((loop_4.value, loop_3.value), (60.7, -5.5))
+        self.assertEqual((loop_4.unit_of_measurement, loop_3.unit_of_measurement),
+                         ('°C', '°C'))
+        self.assertEqual(reader._sensors[64][0].value, payload)
+        self.assertIsNone(sensors['heater_temp'].value)
+
+        # Boiler frames and control frames with ID 64 cannot change these values.
+        reader._decode_packet(PROP_PACKET_SENSE, 32, bytes(32))
+        reader._decode_packet(PROP_PACKET_CTRL, 64, bytes(23))
+        self.assertEqual((loop_4.value, loop_3.value), (60.7, -5.5))
+
+        payload[19:21] = b'\x05\x14'
+        reader._decode_sense_packet(64, payload[:22])
+        self.assertEqual((loop_4.value, loop_3.value), (None, None))
+        self.assertFalse(loop_4.available)
+        self.assertFalse(loop_3.available)
+        reader._decode_sense_packet(64, bytes(23))
+        self.assertEqual((loop_4.value, loop_3.value), (0, 0))
+        self.assertTrue(loop_4.available)
+        self.assertTrue(loop_3.available)
+
     def test_unconfigured_packets_get_only_a_summary(self):
         reader = KWBEasyfire(-1)
         wire = iter(frame(87, bytes(24), sense=False)
-                    + frame(64, bytes(34))
+                    + frame(48, bytes(34))
                     + frame(32, bytes(32))
                     + frame(33, bytes(24), sense=False))
 
@@ -200,7 +232,7 @@ class TemperatureTests(unittest.TestCase):
         self.assertEqual(
             [line for line in output.getvalue().splitlines() if line],
             ['Packet ID 87 CTRL counter=1 length=24',
-             'Packet ID 64 SENSE counter=1 length=34',
+             'Packet ID 48 SENSE counter=1 length=34',
              'Packet ID 32 SENSE counter=1 length=32',
              'Packet ID 33 CTRL counter=1 length=24'])
         sense.assert_called_once_with(32, bytes(32))
@@ -213,6 +245,7 @@ class TemperatureTests(unittest.TestCase):
             (PROP_PACKET_CTRL, 17, bytes(24)),
             (PROP_PACKET_SENSE, 64, bytes(34)),
             (PROP_PACKET_CTRL, 65, bytes(8)),
+            (PROP_PACKET_CTRL, 64, bytes(34)),
             (PROP_PACKET_SENSE, 32, bytes(32)),
             (PROP_PACKET_CTRL, 33, bytes(24)),
             EOFError(),
@@ -221,7 +254,8 @@ class TemperatureTests(unittest.TestCase):
                 patch.object(reader, '_decode_sense_packet') as sense, \
                 patch.object(reader, '_decode_ctrl_packet') as ctrl:
             reader.run()
-        sense.assert_called_once_with(32, bytes(32))
+        self.assertEqual(sense.call_args_list,
+                         [call(64, bytes(34)), call(32, bytes(32))])
         ctrl.assert_called_once_with(33, bytes(24))
 
     def test_disconnected_sensor_clears_previous_reading(self):

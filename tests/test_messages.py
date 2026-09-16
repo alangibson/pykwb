@@ -17,8 +17,8 @@ class MessageSensorTests(unittest.TestCase):
 
     def test_csv_definitions_and_raw_diagnostics(self):
         sensors = self.reader.get_sensors()
-        self.assertEqual(sum(s.sensor_type != PROP_SENSOR_RAW for s in sensors), 57)
-        self.assertEqual(sum(s.sensor_type == PROP_SENSOR_RAW for s in sensors), 2)
+        self.assertEqual(sum(s.sensor_type != PROP_SENSOR_RAW for s in sensors), 58)
+        self.assertEqual(sum(s.sensor_type == PROP_SENSOR_RAW for s in sensors), 3)
         self.assertEqual(self.sensor('Heater Temp').key, 'heater_temp')
         self.assertEqual(self.sensor('Heater Temp').unit_of_measurement, '°C')
         self.assertEqual(self.sensor('Pressure').unit_of_measurement, 'mbar')
@@ -47,8 +47,8 @@ class MessageSensorTests(unittest.TestCase):
             'Pressure': (PROP_SENSOR_PRESSURE, 'mbar'),
             'Suction Speed': (PROP_SENSOR_SPEED, 'rpm'),
             'Fan Speed': (PROP_SENSOR_SPEED, 'rpm'),
-            'Main Drive Cycle Time': (PROP_SENSOR_DURATION, 'ms'),
-            'Main Drive Time': (PROP_SENSOR_DURATION, 'ms'),
+            'Feed Screw Cycle Time': (PROP_SENSOR_DURATION, 'ms'),
+            'Feed Screw On Time': (PROP_SENSOR_DURATION, 'ms'),
             'Buffer 0 Pumping': (PROP_SENSOR_NUMBER, '%'),
             'Photodiode': (PROP_SENSOR_NUMBER, ''),
         }
@@ -80,9 +80,9 @@ class MessageSensorTests(unittest.TestCase):
         self.reader._decode_ctrl_packet(33, payload)
         self.assertEqual(self.sensor('Ash Discharge').value, 1)
         self.assertAlmostEqual(self.sensor('Buffer 0 Pumping').value, 100)
-        self.assertEqual(self.sensor('Main Drive Cycle Time').value, 1230)
-        self.assertEqual(self.sensor('Main Drive Time').value, 500)
+        self.assertEqual(self.sensor('Feed Screw Cycle Time').value, 1230)
+        self.assertEqual(self.sensor('Feed Screw On Time').value, 500)
         self.assertEqual(self.sensor('Heater Output').value, 50)
         self.reader._decode_ctrl_packet(33, bytes(11))
-        self.assertIsNone(self.sensor('Main Drive Cycle Time').value)
-        self.assertFalse(self.sensor('Main Drive Time').available)
+        self.assertIsNone(self.sensor('Feed Screw Cycle Time').value)
+        self.assertFalse(self.sensor('Feed Screw On Time').available)

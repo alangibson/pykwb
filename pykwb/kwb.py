@@ -70,6 +70,7 @@ STATUS_PACKET_DONE = 255
 
 PROP_PACKET_SENSE = 32
 PROP_PACKET_CTRL = 33
+PROP_PACKET_SENSE_64 = 64
 
 PROP_SENSOR_TEMPERATURE = 0
 PROP_SENSOR_FLAG = 1
@@ -234,6 +235,9 @@ class KWBEasyfire:
             ],
             PROP_PACKET_CTRL: [
                 KWBEasyfireSensor(PROP_PACKET_CTRL, 0, "RAW CTRL", PROP_SENSOR_RAW),
+            ],
+            PROP_PACKET_SENSE_64: [
+                KWBEasyfireSensor(PROP_PACKET_SENSE_64, 0, "RAW SENSE 64", PROP_SENSOR_RAW),
             ],
         }
         for message in load_messages():
@@ -423,12 +427,12 @@ class KWBEasyfire:
 
     def _decode_sense_packet(self, version, packet):
         """Decode boiler temperatures using the message ID's payload layout."""
-        if version != PROP_PACKET_SENSE:
+        if version not in (PROP_PACKET_SENSE, PROP_PACKET_SENSE_64):
             return
-        for sensor in self._sensors[PROP_PACKET_SENSE]:
+        for sensor in self._sensors[version]:
             sensor.decode(packet)
 
-        for sensor in self._sensors[PROP_PACKET_SENSE]:
+        for sensor in self._sensors[version]:
             level = (PROP_LOGLEVEL_DEBUG if sensor.sensor_type == PROP_SENSOR_RAW
                      else PROP_LOGLEVEL_INFO)
             self._debug(level, str(sensor))
@@ -464,7 +468,7 @@ class KWBEasyfire:
 
     def _decode_packet(self, mode, version, packet):
         """Decode only configured message IDs with matching frame types."""
-        if mode == PROP_PACKET_SENSE and version == PROP_PACKET_SENSE:
+        if mode == PROP_PACKET_SENSE and version in (PROP_PACKET_SENSE, PROP_PACKET_SENSE_64):
             self._decode_sense_packet(version, packet)
         elif mode == PROP_PACKET_CTRL and version == PROP_PACKET_CTRL:
             self._decode_ctrl_packet(version, packet)
