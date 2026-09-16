@@ -190,7 +190,7 @@ class TemperatureTests(unittest.TestCase):
         reader._decode_sense_packet(64, bytes(24))
         self.assertEqual(reader._sense_sensor[4].value, 74.1)
 
-    def test_unconfigured_packets_are_not_logged_or_decoded(self):
+    def test_unconfigured_packets_get_only_a_summary(self):
         reader = KWBEasyfire(-1)
         wire = iter(frame(87, bytes(24), sense=False)
                     + frame(64, bytes(34))
@@ -209,10 +209,12 @@ class TemperatureTests(unittest.TestCase):
                 patch.object(reader, '_decode_sense_packet') as sense, \
                 patch.object(reader, '_decode_ctrl_packet') as ctrl:
             reader.run()
-        self.assertNotIn('Packet ID 87', output.getvalue())
-        self.assertNotIn('Packet ID 64', output.getvalue())
-        self.assertIn('Packet ID 32 SENSE', output.getvalue())
-        self.assertIn('Packet ID 33 CTRL', output.getvalue())
+        self.assertEqual(
+            [line for line in output.getvalue().splitlines() if line],
+            ['Packet ID 87 CTRL counter=1 length=24',
+             'Packet ID 64 SENSE counter=1 length=34',
+             'Packet ID 32 SENSE counter=1 length=32',
+             'Packet ID 33 CTRL counter=1 length=24'])
         sense.assert_called_once_with(32, bytes(32))
         ctrl.assert_called_once_with(33, bytes(24))
 

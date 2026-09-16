@@ -346,13 +346,12 @@ class KWBEasyfire:
             if self._read_ord_byte() != checksum:
                 continue
 
-            if version == mode:
-                packet_type = "SENSE" if mode == PROP_PACKET_SENSE else "CTRL"
-                summary = "\n\nPacket ID %d %s counter=%d length=%d" % (
-                    version, packet_type, counter, len(packet))
-                if self._debug_level >= PROP_LOGLEVEL_DEBUG:
-                    summary += " payload=" + packet.hex(" ")
-                self._debug(PROP_LOGLEVEL_INFO, summary)
+            packet_type = "SENSE" if mode == PROP_PACKET_SENSE else "CTRL"
+            summary = "\n\nPacket ID %d %s counter=%d length=%d" % (
+                version, packet_type, counter, len(packet))
+            if self._debug_level >= PROP_LOGLEVEL_DEBUG:
+                summary += " payload=" + packet.hex(" ")
+            self._debug(PROP_LOGLEVEL_INFO, summary)
             return (mode, version, packet)
 
     def _decode_sense_packet(self, version, packet):
@@ -453,13 +452,30 @@ def main():
     group_file = parser.add_argument_group('File')
     group_file.add_argument('--file', dest='mode', action='store_const', const=PROP_MODE_FILE, help="Set file mode")
     group_file.add_argument('--name', dest='file', help="Specify file name", default='')
+    group_terminal = parser.add_argument_group('Terminal')
+    group_terminal.add_argument('--log', choices=('true', 'false'), default='true',
+                                help="Print individual messages (default: true)")
+    group_terminal.add_argument('--summary', choices=('true', 'false'), default='true',
+                                help="Print final sensor summary (default: true)")
+    group_execution = parser.add_argument_group('Execution')
+    group_execution.add_argument('--wait', type=float, default=5,
+                                 help="Seconds to listen before stopping (default: 5)")
     args = parser.parse_args()
+    if not 0 <= args.wait < float('inf'):
+        parser.error('--wait must be a finite, non-negative number')
 
     kwb = KWBEasyfire(args.mode, args.hostname, args.port, args.interface, 0, args.file)
+    if args.log == 'false':
+        kwb._debug_level = PROP_LOGLEVEL_NONE
     kwb.run_thread()
-    time.sleep(5)
+    time.sleep(args.wait)
     kwb.stop_thread()
-    print(kwb)
+    if args.summary == 'true':
+        print("\n\n---\nSUMMARY:")
+        for sensor in kwb.get_sensors():
+            if sensor.sensor_type == PROP_SENSOR_RAW:
+                continue
+            print(sensor)
 
 
 if __name__ == "__main__":
