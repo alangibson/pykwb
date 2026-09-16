@@ -75,6 +75,9 @@ PROP_SENSOR_TEMPERATURE = 0
 PROP_SENSOR_FLAG = 1
 PROP_SENSOR_RAW = 2
 PROP_SENSOR_NUMBER = 3
+PROP_SENSOR_PRESSURE = 4
+PROP_SENSOR_DURATION = 5
+PROP_SENSOR_SPEED = 6
 
 TCP_IP = "127.0.0.1"
 TCP_PORT = 23
@@ -110,8 +113,14 @@ class KWBEasyfireSensor:
         if message['type'] == 'bit':
             sensor_type = PROP_SENSOR_FLAG
         elif message['type'] == 'int':
-            sensor_type = (PROP_SENSOR_TEMPERATURE if message['units'] == 'C'
-                           else PROP_SENSOR_NUMBER)
+            sensor_type = {
+                'C': PROP_SENSOR_TEMPERATURE,
+                'mbar': PROP_SENSOR_PRESSURE,
+                'ms': PROP_SENSOR_DURATION,
+                'msec': PROP_SENSOR_DURATION,
+                'sec': PROP_SENSOR_DURATION,
+                'rpm': PROP_SENSOR_SPEED,
+            }.get(message['units'], PROP_SENSOR_NUMBER)
         else:
             raise ValueError("Unsupported sensor type: " + message['type'])
         return cls(
@@ -167,12 +176,12 @@ class KWBEasyfireSensor:
 
     @property
     def sensor_type(self):
-        """Return the temperature, flag, raw, or numeric sensor type."""
+        """Return the sensor's measurement or data type."""
         return self._sensor_type
 
     @property
     def unit_of_measurement(self):
-        """Returns the unit of measurement of the sensor. It can be °C or empty."""
+        """Return the CSV unit, displaying Celsius as °C."""
         if (self._sensor_type == PROP_SENSOR_TEMPERATURE):
             return "°C"
         else:

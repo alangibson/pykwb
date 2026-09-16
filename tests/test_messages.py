@@ -1,7 +1,10 @@
 """CSV sensor construction and decoding beyond the original sensor lists."""
 import unittest
 
-from pykwb.kwb import KWBEasyfire, PROP_SENSOR_RAW
+from pykwb.kwb import (
+    KWBEasyfire, KWBEasyfireSensor, PROP_SENSOR_RAW, PROP_SENSOR_TEMPERATURE,
+    PROP_SENSOR_PRESSURE, PROP_SENSOR_DURATION, PROP_SENSOR_SPEED, PROP_SENSOR_NUMBER,
+)
 
 
 class MessageSensorTests(unittest.TestCase):
@@ -37,6 +40,36 @@ class MessageSensorTests(unittest.TestCase):
         self.reader._decode_sense_packet(32, bytes(34))
         self.assertIsNone(self.sensor('Pressure').value)
         self.assertFalse(self.sensor('Fan Speed').available)
+
+    def test_measurement_types_from_csv_units(self):
+        expected = {
+            'Heater Temp': (PROP_SENSOR_TEMPERATURE, '°C'),
+            'Pressure': (PROP_SENSOR_PRESSURE, 'mbar'),
+            'Suction Speed': (PROP_SENSOR_SPEED, 'rpm'),
+            'Fan Speed': (PROP_SENSOR_SPEED, 'rpm'),
+            'Main Drive Cycle Time': (PROP_SENSOR_DURATION, 'ms'),
+            'Main Drive Time': (PROP_SENSOR_DURATION, 'ms'),
+            'Buffer 0 Pumping': (PROP_SENSOR_NUMBER, '%'),
+            'Photodiode': (PROP_SENSOR_NUMBER, ''),
+        }
+        for name, (sensor_type, units) in expected.items():
+            with self.subTest(name=name):
+                sensor = self.sensor(name)
+                self.assertEqual(sensor.sensor_type, sensor_type)
+                self.assertEqual(sensor.unit_of_measurement, units)
+
+    def test_duration_unit_variants_preserve_scale(self):
+        for units in ('ms', 'msec', 'sec'):
+            with self.subTest(units=units):
+                sensor = KWBEasyfireSensor.from_message({
+                    'message_id': '33', 'offset': '0', 'name_en': 'Duration',
+                    'type': 'int', 'bit': '', 'length': '2', 'signed': '0',
+                    'scale': '10', 'units': units, 'key': '',
+                })
+                sensor.decode(b'\x05\x14')
+                self.assertEqual(sensor.sensor_type, PROP_SENSOR_DURATION)
+                self.assertEqual(sensor.unit_of_measurement, units)
+                self.assertEqual(sensor.value, 13000)
 
     def test_control_numbers_and_csv_ash_discharge_position(self):
         payload = bytearray(17)

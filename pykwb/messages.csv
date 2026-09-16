@@ -1,8 +1,8 @@
 message_id,message_type,key,name_de,name_en,type,signed,offset,length,bit,scale,units,pykwb_index,ha_component,ha_state_class,ha_device_class,source
-32,sense,,Aschebehaelter,Ash Can OK,bit,,3,,6,,,,binary_sensor,,,10
-32,sense,main_drive_on,Hauptantriebimpuls,Heater Running,bit,,3,,7,,,,binary_sensor,,,"1,10"
+32,sense,ash_can_ok,Aschebehaelter,Ash Can OK,bit,,3,,6,,,,binary_sensor,,,10
+32,sense,heater_running,Hauptantriebimpuls,Heater Running,bit,,3,,7,,,,binary_sensor,,running,"1,10"
 32,sense,,Klixon Raumaustragung,Ash Clearing Alarm,bit,,4,,1,,,,binary_sensor,,,10
-32,sense,,Füllstandssensor,Ash Grate Full,bit,,4,,2,,,,binary_sensor,,,10
+32,sense,ash_grate_full,Füllstandssensor,Ash Grate Full,bit,,4,,2,,,,binary_sensor,,,10
 32,sense,,Klixon Stoker,Igniter Alarm,bit,,4,,3,,,,binary_sensor,,,10
 32,sense,,Endschalter BS Klappe,Endschalter BS Klappe,bit,,4,,4,,,,binary_sensor,,,10
 32,sense,,Türkontakt,Door Contact,bit,,4,,5,,,,binary_sensor,,door,10
@@ -28,34 +28,34 @@ message_id,message_type,key,name_de,name_en,type,signed,offset,length,bit,scale,
 32,sense,pressure_mbar,Unterdruck,Pressure,int,,34,2,,0.001,mbar,,sensor,measurement,pressure,9
 32,sense,,Drehzahl Saugzug,Suction Speed,int,0,69,2,,0.6,rpm,,sensor,measurement,speed,"1, 10"
 32,sense,fan_speed_rpm,Drehzahl Luefter,Fan Speed,int,0,71,2,,0.6,rpm,,sensor,measurement,speed,"1, 10"
-33,control,,Kessel Hauptrelais,Heater Power On,bit,,1,,2,,,,binary_sensor,measurement,,"9, 10"
-33,control,loop_1_pump_on,HK1 Pumpe,Loop 1 Pump On,bit,,1,,5,,,,binary_sensor,measurement,,"9, 10"
-33,control,loop_2_pump_on,HK2 Pumpe,Loop 2 Pump On,bit,,1,,6,,,,binary_sensor,measurement,,"9, 10"
-33,control,,HK1 Mischer AN,Loop 1 Mixer Open,bit,,1,,7,,,,binary_sensor,measurement,,"9, 10"
+33,control,,Kessel Hauptrelais,Heater Power On,bit,,1,,2,,,,binary_sensor,measurement,power,"9, 10"
+33,control,loop_1_pump_on,HK1 Pumpe,Loop 1 Pump On,bit,,1,,5,,,,binary_sensor,measurement,running,"9, 10"
+33,control,loop_2_pump_on,HK2 Pumpe,Loop 2 Pump On,bit,,1,,6,,,,binary_sensor,measurement,running,"9, 10"
+33,control,,HK1 Mischer AN,Loop 1 Mixer Open,bit,,1,,7,,,,binary_sensor,measurement,opening,"9, 10"
 33,control,,HK1 Mischer ZU,Loop 1 Mixer Closed,bit,,2,,0,,,,binary_sensor,measurement,,"9, 10"
-33,control,,HK2 Mischer AN,Loop 2 Mixer Open,bit,,2,,1,,,,binary_sensor,measurement,,"9, 10"
+33,control,,HK2 Mischer AN,Loop 2 Mixer Open,bit,,2,,1,,,,binary_sensor,measurement,opening,"9, 10"
 33,control,,HK2 Mischer ZU,Loop 2 Mixer Closed,bit,,2,,2,,,,binary_sensor,measurement,,"9, 10"
-33,control,,,Return Mixer Open,bit,,2,,3,,,,binary_sensor,measurement,,10
+33,control,,,Return Mixer Open,bit,,2,,3,,,,binary_sensor,measurement,opening,10
 33,control,,,Return Mixer Closed,bit,,2,,4,,,,binary_sensor,measurement,,10
-33,control,tank_0_pump_on,Boiler Pumpe,Tank 0 Pump On,bit,,2,,5,,,,binary_sensor,measurement,,"9, 10"
-33,control,ash_discharge,,Ash Discharge,bit,,2,,6,,,,binary_sensor,measurement,,"9, 10"
-33,control,buffer_pump_on,Puffer Pumpe,Buffer Pump On,bit,,2,,7,,,,binary_sensor,measurement,,"9, 10"
+33,control,tank_0_pump_on,Boiler Pumpe,Tank 0 Pump On,bit,,2,,5,,,,binary_sensor,measurement,running,"9, 10"
+33,control,ash_discharge,,Ash Discharge,bit,,2,,6,,,,binary_sensor,measurement,running,"9, 10"
+33,control,buffer_pump_on,Puffer Pumpe,Buffer Pump On,bit,,2,,7,,,,binary_sensor,measurement,running,"9, 10"
 33,control,,KeineStoerung,No Interference,bit,,3,,0,,,,binary_sensor,measurement,,"1, 9"
 33,control,,Keine Stoerung,No Interference State,bit,,3,,0,,,,binary_sensor,measurement,,10
-33,control,,,Ignition On,bit,,3,,2,,,,binary_sensor,measurement,,10
-33,control,rotating_grate_on,Drehrost,Ash Grate Revolving On,bit,,3,,6,,,,binary_sensor,measurement,,"1, 9"
-33,control,cleaning_on,Reinigung,Cleaning On,bit,,3,,7,,,,binary_sensor,measurement,,"1, 9"
-33,control,ash_clearing_on,Reinigung,Ash Clearing On,bit,,3,,7,,,,binary_sensor,measurement,,10
-33,control,ash_clearing_fan_on,Raumaustragung Saugturbine,Ash Clearing Fan On,bit,,4,,1,,,,binary_sensor,measurement,,9
-33,control,,Saugzug,Suction On,bit,,4,,5,,,,binary_sensor,measurement,,10
-33,control,,Hauptantrieb,Heater Active,bit,,5,,0,,,,binary_sensor,measurement,,10
-33,control,buffer_0_pumping,Pumpe Puffer,Buffer 0 Pumping,int,0,8,1,,0.3921568627,%,,,measurement,,10
-33,control,heater_main_contact_on,Heater Hauptschuetz,Heater Main Contact On,bit,,9,,1,,,,binary_sensor,measurement,,"9, 10"
-33,control,ash_clearing_on,Raumaustragung,Ash Clearing On,bit,,9,,2,,,,binary_sensor,measurement,,"1, 10"
+33,control,,,Ignition On,bit,,3,,2,,,,binary_sensor,measurement,running,10
+33,control,rotating_grate_on,Drehrost,Ash Grate Revolving On,bit,,3,,6,,,,binary_sensor,measurement,running,"1, 9"
+33,control,cleaning_on,Reinigung,Cleaning On,bit,,3,,7,,,,binary_sensor,measurement,running,"1, 9"
+33,control,ash_clearing_on,Reinigung,Ash Clearing On,bit,,3,,7,,,,binary_sensor,measurement,running,10
+33,control,ash_clearing_fan_on,Raumaustragung Saugturbine,Ash Clearing Fan On,bit,,4,,1,,,,binary_sensor,measurement,running,9
+33,control,,Saugzug,Suction On,bit,,4,,5,,,,binary_sensor,measurement,running,10
+33,control,,Hauptantrieb,Heater Active,bit,,5,,0,,,,binary_sensor,measurement,running,10
+33,control,buffer_0_pumping,Pumpe Puffer,Buffer 0 Pumping,int,0,8,1,,0.3921568627,%,,,measurement,power_factor,10
+33,control,heater_main_contact_on,Heater Hauptschuetz,Heater Main Contact On,bit,,9,,1,,,,binary_sensor,measurement,running,"9, 10"
+33,control,ash_clearing_on,Raumaustragung,Ash Clearing On,bit,,9,,2,,,,binary_sensor,measurement,running,"1, 10"
 33,control,main_drive_cycle_time,Hauptantriebtakt,Main Drive Cycle Time,int,0,10,2,,10,ms,,,measurement,duration,10
 33,control,main_drive_run_time,Hauptantrieb Laufzeit,Main Drive Time,int,0,12,2,,10,ms,,,measurement,duration,10
-33,control,heater_output,Kesselleistung,Heater Output,int,0,13,1,,1,%,,,measurement,,3
-33,control,ignition_on,Zuendung,Ignition On,bit,,16,,2,,,,binary_sensor,measurement,,1
+33,control,heater_output,Kesselleistung,Heater Output,int,0,13,1,,1,%,,,measurement,power_factor,3
+33,control,ignition_on,Zuendung,Ignition On,bit,,16,,2,,,,binary_sensor,measurement,running,1
 16,sense,loop_1_out_temp,T_Vorlauf_HK1,Loop 1 Out Flow Temp,int,1,5,2,,0.1,C,,,measurement,temperature,2
 16,sense,boiler_return_temp,T_Ruecklauf_Kessel,Boiler Return Flow Temp,int,1,7,2,,0.1,C,,,measurement,temperature,2
 16,sense,tank_temp,T_Boiler,Tank Temp,int,1,9,2,,0.1,C,,,measurement,temperature,2
