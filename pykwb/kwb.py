@@ -118,7 +118,7 @@ class KWBEasyfireSensor:
     @value.setter
     def value(self, _value):
         """Sets the value of the sensor. Unit is unit_of_measurement."""
-        self._available = True
+        self._available = _value is not None
         self._value = _value
 
     @property
@@ -138,7 +138,7 @@ class KWBEasyfire:
     def __init__(self, _mode, _ip="", _port=0, _serial_device="", _serial_speed=19200, _file_path=""):
         """Initialize the Object."""
 
-        self._debug_level = PROP_LOGLEVEL_DEBUG
+        self._debug_level = PROP_LOGLEVEL_INFO
         self._run_thread = True
 
         self._mode = _mode
@@ -247,8 +247,11 @@ class KWBEasyfire:
         elif (self._mode == PROP_MODE_FILE):
             read = self._file.readline()
             if (read == ''):
-                raise Exception("EOF")
+                raise EOFError("EOF")
             to_return = struct.pack("B", int(read))
+
+        if not to_return:
+            raise EOFError("Input connection closed")
 
         _LOGGER.debug("READ: " + str(ord(to_return)))
         self._logdata.append(ord(to_return))
@@ -268,7 +271,7 @@ class KWBEasyfire:
         """Remove the escape pad bytes from a sense packet (\2\0 -> \2)."""
         data = bytearray(0)
         last = 0
-        i = 1
+        i = 0
         while (i < len(packet)):
             if not (last == 2 and packet[i] == 0):
                 data.append(packet[i])
@@ -281,130 +284,114 @@ class KWBEasyfire:
     def _decode_temp(byte_1, byte_2):
         """Decode a signed short temperature as two bytes to a single number."""
         temp = (byte_1 << 8) + byte_2
+        if temp == 1300:
+            return None
         if (temp > 32767):
             temp = temp - 65536
         temp = temp / 10
         return temp
 
-    # pylint: disable=too-many-branches, too-many-statements
     def _read_packet(self):
-        """Read a packet from the input."""
-
-        status = STATUS_WAITING
-        mode = 0
-        checksum = 0
-        checksum_calculated = 0
-        length = 0
-        version = 0
-        i = 0
-        cnt = 0
-        packet = bytearray(0)
-
-        while (status != STATUS_PACKET_DONE):
-
-            read = self._read_ord_byte()
-            if (status != STATUS_CTRL_CHECKSUM and status != STATUS_SENSE_CHECKSUM):
-                checksum_calculated = self._add_to_checksum(checksum_calculated, read)
-            self._debug(PROP_LOGLEVEL_TRACE, "R: " + str(read))
-            self._debug(PROP_LOGLEVEL_TRACE, "S: " + str(status))
-
-            if (status == STATUS_WAITING):
-                if (read == 2):
-                    status = STATUS_PRE_1
-                    checksum_calculated = read
-                else:
-                    status = STATUS_WAITING
-            elif (status == STATUS_PRE_1):
-                checksum = 0
-                if (read == 2):
-                    status = STATUS_SENSE_PRE_2
-                    checksum_calculated = read
-                elif (read == 0):
-                    status = STATUS_WAITING
-                else:
-                    status = STATUS_CTRL_PRE_2
-            elif (status == STATUS_SENSE_PRE_2):
-                length = read
-                status = STATUS_SENSE_PRE_LENGTH
-            elif (status == STATUS_SENSE_PRE_LENGTH):
-                version = read
-                status = STATUS_SENSE_PRE_3
-            elif (status == STATUS_SENSE_PRE_3):
-                cnt = read
-                i = 0
-                status = STATUS_SENSE_DATA
-            elif (status == STATUS_SENSE_DATA):
-                packet.append(read)
-                i = i + 1
-                if (i == length):
-                    status = STATUS_SENSE_CHECKSUM
-            elif (status == STATUS_SENSE_CHECKSUM):
-                checksum = read
-                mode = PROP_PACKET_SENSE
-                status = STATUS_PACKET_DONE
-            elif (status == STATUS_CTRL_PRE_2):
-                version = read
-                status = STATUS_CTRL_PRE_3
-            elif (status == STATUS_CTRL_PRE_3):
-                cnt = read
-                i = 0
-                length = 16
-                status = STATUS_CTRL_DATA
-            elif (status == STATUS_CTRL_DATA):
-                packet.append(read)
-                i = i + 1
-                if (i == length):
-                    status = STATUS_CTRL_CHECKSUM
-            elif (status == STATUS_CTRL_CHECKSUM):
-                checksum = read
-                mode = PROP_PACKET_CTRL
-                status = STATUS_PACKET_DONE
+        """Read a checksum-valid frame and return its unescaped payload."""
+        pending_length = None
+        while True:
+            if pending_length is None:
+                if self._read_ord_byte() != 2:
+                    continue
+                length = self._read_ord_byte()
             else:
-                status = STATUS_WAITING
+                length = pending_length
+                pending_length = None
 
-        self._debug(PROP_LOGLEVEL_DEBUG, "MODE: " + str(mode) + " Version: " + str(version) + " Checksum: " + str(checksum) + " / " + str(checksum_calculated) + " Count: " + str(cnt) + " Length: " + str(len(packet)))
-        self._debug(PROP_LOGLEVEL_TRACE, "Packet: " + str(packet))
+            if length == 0:
+                continue
+            mode = PROP_PACKET_CTRL
+            while length == 2:
+                mode = PROP_PACKET_SENSE
+                length = self._read_ord_byte()
+            if length < 5:
+                continue
 
-        return (mode, version, packet)
+            version = self._read_ord_byte()
+            counter = self._read_ord_byte()
+            checksum = 2
+            for value in (length, version, counter):
+                checksum = self._add_to_checksum(checksum, value)
+
+            # Length includes the four header bytes and the checksum, but
+            # excludes the extra sense header and payload escape padding.
+            packet = bytearray()
+            valid = True
+            for _ in range(length - 5):
+                value = self._read_ord_byte()
+                packet.append(value)
+                checksum = self._add_to_checksum(checksum, value)
+                if value == 2:
+                    padding = self._read_ord_byte()
+                    if padding != 0:
+                        # An unescaped 2 starts a new frame. Reuse its next
+                        # byte as the length (or extra sense header), rather
+                        # than discarding the beginning of that frame.
+                        pending_length = padding
+                        valid = False
+                        break
+            if not valid:
+                continue
+            if self._read_ord_byte() != checksum:
+                continue
+
+            packet_type = "SENSE" if mode == PROP_PACKET_SENSE else "CTRL"
+            summary = "\n\nPacket ID %d %s counter=%d length=%d" % (
+                version, packet_type, counter, len(packet))
+            if self._debug_level >= PROP_LOGLEVEL_DEBUG:
+                summary += " payload=" + packet.hex(" ")
+            self._debug(PROP_LOGLEVEL_INFO, summary)
+            return (mode, version, packet)
 
     def _decode_sense_packet(self, version, packet):
-        """Decode a sense packet into the list of sensors."""
-
-        data = self._sense_packet_to_data(packet)
-
-        offset = 4
-        i = 0
-
-        datalen = len(data) - offset - 6
-        temp_count = int(datalen / 2)
-        temp = []
-
-        for i in range(temp_count):
-            temp_index = i * 2 + offset
-            temp.append(self._decode_temp(data[temp_index], data[temp_index + 1]))
-
-        self._debug(PROP_LOGLEVEL_DEBUG, "T: " + str(temp))
+        """Decode boiler temperatures using the message ID's payload layout."""
+        # Keys are the existing sensor indices; values are payload byte offsets.
+        # The reference omits the constant remote adjustments in message 32.
+        offsets_by_version = {
+            16: {0: 5, 1: 7, 2: 9, 3: 11, 4: 13, 5: 15,
+                 6: 17, 7: 19, 12: 29},
+            32: {0: 6, 1: 8, 2: 10, 3: 12, 4: 14, 5: 16,
+                 6: 18, 7: 20, 8: 22, 11: 28},
+        }
+        offsets = offsets_by_version.get(version)
+        for sensor in self._sense_sensor:
+            if sensor.sensor_type == PROP_SENSOR_RAW:
+                sensor.value = packet
+            elif offsets is not None:
+                offset = offsets.get(sensor.index)
+                if offset is None or offset + 1 >= len(packet):
+                    sensor.value = None
+                else:
+                    sensor.value = self._decode_temp(packet[offset], packet[offset + 1])
 
         for sensor in self._sense_sensor:
-            if (sensor.sensor_type == PROP_SENSOR_TEMPERATURE):
-                sensor.value = temp[sensor.index]
-            elif (sensor.sensor_type == PROP_SENSOR_RAW):
-                sensor.value = packet
-
-        self._debug(PROP_LOGLEVEL_DEBUG, str(self))
+            level = (PROP_LOGLEVEL_DEBUG if sensor.sensor_type == PROP_SENSOR_RAW
+                     else PROP_LOGLEVEL_INFO)
+            self._debug(level, str(sensor))
 
     def _decode_ctrl_packet(self, version, packet):
         """Decode a control packet into the list of sensors."""
 
-        for i in range(5):
+        for i in range(min(5, len(packet))):
             input_bit = packet[i]
             self._debug(PROP_LOGLEVEL_DEBUG, "Byte " + str(i) + ": " + str((input_bit >> 7) & 1) + str((input_bit >> 6) & 1) + str((input_bit >> 5) & 1) + str((input_bit >> 4) & 1) + str((input_bit >> 3) & 1) + str((input_bit >> 2) & 1) + str((input_bit >> 1) & 1) + str(input_bit & 1))
 
         for sensor in self._ctrl_sensor:
-            if (sensor.sensor_type == PROP_SENSOR_FLAG):
-                sensor.value = (packet[sensor.index // 8] >> (sensor.index % 8)) & 1
+            if (sensor.sensor_type == PROP_SENSOR_FLAG and version in (17, 33)):
+                offset = sensor.index // 8
+                sensor.value = ((packet[offset] >> (sensor.index % 8)) & 1
+                                if offset < len(packet) else None)
             elif (sensor.sensor_type == PROP_SENSOR_RAW):
                 sensor.value = packet
+
+        if version == 33:
+            self._debug(PROP_LOGLEVEL_INFO, "ID 33 control values (legacy mapping):\n" +
+                        "\n".join(str(sensor) for sensor in self._ctrl_sensor))
 
     def get_sensors(self):
         """Return the list of sensors."""
@@ -425,7 +412,11 @@ class KWBEasyfire:
     def run(self):
         """Main thread that reads from input and populates the sensors."""
         while (self._run_thread):
-            (mode, version, packet) = self._read_packet()
+            try:
+                (mode, version, packet) = self._read_packet()
+            except EOFError:
+                self._run_thread = False
+                return
             if (mode == PROP_PACKET_SENSE):
                 self._decode_sense_packet(version, packet)
             elif (mode == PROP_PACKET_CTRL):
