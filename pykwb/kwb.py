@@ -545,6 +545,34 @@ class KWBEasyfire:
         return self._thread.is_alive()
 
 
+def _print_summary(kwb):
+    """Print sensor values in alphabetical order."""
+    print("\n\n---\nSUMMARY: " + time.strftime("%Y-%m-%d %H:%M:%S %Z"))
+    for sensor in sorted(kwb.get_sensors(), key=lambda sensor: sensor.name.casefold()):
+        if sensor.sensor_type != PROP_SENSOR_RAW:
+            print(sensor)
+
+
+async def _listen_with_summaries(kwb, seconds, summary):
+    """Keep listening while reporting periodically, until EOF or cancellation."""
+    listener = asyncio.create_task(kwb.listen_forever())
+    try:
+        while True:
+            done, _ = await asyncio.wait({listener}, timeout=seconds)
+            if done:
+                listener.result()
+            if summary:
+                _print_summary(kwb)
+            if done:
+                break
+    finally:
+        listener.cancel()
+        try:
+            await listener
+        except asyncio.CancelledError:
+            pass
+
+
 def main():
     """Main method for debug purposes."""
     parser = argparse.ArgumentParser()
@@ -552,7 +580,9 @@ def main():
     group_execution.add_argument('--mode', dest='execution_mode', choices=('thread', 'async'),
                                  default='thread', help="Execution mode (default: thread)")
     group_execution.add_argument('--wait', type=float, default=5,
-                                 help="Seconds to listen before stopping (default: 5)")
+                                 help="Seconds to listen, or summary interval with --forever (default: 5)")
+    group_execution.add_argument('--forever', action='store_true', default=False,
+                                 help="Listen continuously, printing summaries every --wait seconds")
     group_tcp = parser.add_argument_group('TCP')
     group_tcp.add_argument('--tcp', dest='mode', action='store_const', const=PROP_MODE_TCP, help="Set tcp mode")
     group_tcp.add_argument('--host', dest='hostname', help="Specify hostname", default='')
@@ -567,28 +597,41 @@ def main():
     group_terminal.add_argument('--log', choices=('true', 'false'), default='true',
                                 help="Print individual messages (default: true)")
     group_terminal.add_argument('--summary', choices=('true', 'false'), default='true',
-                                help="Print final sensor summary (default: true)")
+                                help="Print sensor summaries (default: true)")
     args = parser.parse_args()
     if not 0 <= args.wait < float('inf'):
         parser.error('--wait must be a finite, non-negative number')
+    if args.forever and args.wait == 0:
+        parser.error('--wait must be positive with --forever')
 
     kwb = KWBEasyfire(args.mode, args.hostname, args.port, args.interface, 0, args.file)
     if args.log == 'false':
         kwb._debug_level = PROP_LOGLEVEL_NONE
     # Run in either async loop or thread
-    if args.execution_mode == 'async':
-        asyncio.run(kwb.listen_for(seconds=args.wait))
-    else:
-        kwb.run_thread()
-        time.sleep(args.wait)
-        kwb.stop_thread()
+    try:
+        if args.execution_mode == 'async':
+            if args.forever:
+                asyncio.run(_listen_with_summaries(kwb, args.wait, args.summary == 'true'))
+            else:
+                asyncio.run(kwb.listen_for(seconds=args.wait))
+        else:
+            kwb.run_thread()
+            try:
+                while True:
+                    time.sleep(args.wait)
+                    if not args.forever:
+                        break
+                    if args.summary == 'true':
+                        _print_summary(kwb)
+                    if not kwb.is_alive():
+                        break
+            finally:
+                kwb.stop_thread()
+    except KeyboardInterrupt:
+        return
     # Print summary
-    if args.summary == 'true':
-        print("\n\n---\nSUMMARY:")
-        for sensor in sorted(kwb.get_sensors(), key=lambda sensor: sensor.name.casefold()):
-            if sensor.sensor_type == PROP_SENSOR_RAW:
-                continue
-            print(sensor)
+    if not args.forever and args.summary == 'true':
+        _print_summary(kwb)
 
 
 if __name__ == "__main__":
