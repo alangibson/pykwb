@@ -585,7 +585,7 @@ def main():
     # Print summary
     if args.summary == 'true':
         print("\n\n---\nSUMMARY:")
-        for sensor in kwb.get_sensors():
+        for sensor in sorted(kwb.get_sensors(), key=lambda sensor: sensor.name.casefold()):
             if sensor.sensor_type == PROP_SENSOR_RAW:
                 continue
             print(sensor)
