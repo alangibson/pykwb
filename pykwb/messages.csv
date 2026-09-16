@@ -39,22 +39,21 @@ message_id,message_type,key,name_de,name_en,type,signed,offset,length,bit,scale,
 33,control,,,Return Mixer Closed,bit,,2,,4,,,,binary_sensor,measurement,,10
 33,control,tank_0_pump_on,Boiler Pumpe,Tank 0 Pump On,bit,,2,,5,,,,binary_sensor,measurement,running,"9, 10"
 33,control,ash_discharge,,Ash Discharge,bit,,2,,6,,,,binary_sensor,measurement,running,"9, 10"
-33,control,buffer_pump_on,Puffer Pumpe,Buffer Pump On,bit,,2,,7,,,,binary_sensor,measurement,running,"9, 10"
+33,control,buffer_pump_on,Puffer Pumpe,Buffer 0 Pump On,bit,,2,,7,,,,binary_sensor,measurement,running,"9, 10"
 33,control,,KeineStoerung,No Interference,bit,,3,,0,,,,binary_sensor,measurement,,"1, 9"
-33,control,,Keine Stoerung,No Interference State,bit,,3,,0,,,,binary_sensor,measurement,,10
 33,control,,,Ignition On,bit,,3,,2,,,,binary_sensor,measurement,running,10
 33,control,rotating_grate_on,Drehrost,Ash Grate Revolving On,bit,,3,,6,,,,binary_sensor,measurement,running,"1, 9"
 33,control,cleaning_on,Reinigung,Cleaning On,bit,,3,,7,,,,binary_sensor,measurement,running,"1, 9"
 33,control,ash_clearing_on,Reinigung,Ash Clearing On,bit,,3,,7,,,,binary_sensor,measurement,running,10
 33,control,ash_clearing_fan_on,Raumaustragung Saugturbine,Ash Clearing Fan On,bit,,4,,1,,,,binary_sensor,measurement,running,9
 33,control,,Saugzug,Suction On,bit,,4,,5,,,,binary_sensor,measurement,running,10
-33,control,,Hauptantrieb,Heater Active,bit,,5,,0,,,,binary_sensor,measurement,running,10
-33,control,buffer_0_pumping,Pumpe Puffer,Buffer 0 Pumping,int,0,8,1,,0.3921568627,%,,,measurement,power_factor,10
+33,control,,Hauptantrieb,Feed Screw On,bit,,5,,0,,,,binary_sensor,measurement,running,10
+33,control,buffer_0_pumping,Pumpe Puffer,Buffer 0 Pumping,int,0,8,1,,0.3921568627,%,,sensor,measurement,power_factor,10
 33,control,heater_main_contact_on,Heater Hauptschuetz,Heater Main Contact On,bit,,9,,1,,,,binary_sensor,measurement,running,"9, 10"
 33,control,ash_clearing_on,Raumaustragung,Ash Clearing On,bit,,9,,2,,,,binary_sensor,measurement,running,"1, 10"
-33,control,main_drive_cycle_time,Hauptantriebtakt,Main Drive Cycle Time,int,0,10,2,,10,ms,,,measurement,duration,10
-33,control,main_drive_run_time,Hauptantrieb Laufzeit,Main Drive Time,int,0,12,2,,10,ms,,,measurement,duration,10
-33,control,heater_output,Kesselleistung,Heater Output,int,0,13,1,,1,%,,,measurement,power_factor,3
+33,control,main_drive_cycle_time,Periodendauer Hauptantrieb,Feed Screw Cycle Time,int,0,10,2,,10,ms,,sensor,measurement,duration,10
+33,control,main_drive_run_time,Einschubzeit Hauptantrieb,Feed Screw On Time,int,0,12,2,,10,ms,,sensor,measurement,duration,10
+33,control,heater_output,Kesselleistung,Heater Output,int,0,13,1,,1,%,,sensor,measurement,power_factor,3
 33,control,ignition_on,Zuendung,Ignition On,bit,,16,,2,,,,binary_sensor,measurement,running,1
 16,sense,loop_1_out_temp,T_Vorlauf_HK1,Loop 1 Out Flow Temp,int,1,5,2,,0.1,C,,,measurement,temperature,2
 16,sense,boiler_return_temp,T_Ruecklauf_Kessel,Boiler Return Flow Temp,int,1,7,2,,0.1,C,,,measurement,temperature,2
