@@ -71,7 +71,7 @@ class TemperatureTests(unittest.TestCase):
                     counts[message_id] = counts.get(message_id, 0) + 1
                     if mode == PROP_PACKET_SENSE and counts[message_id] == 1:
                         reader._decode_sense_packet(message_id, payload)
-                        sensors = reader._sense_sensor[1:]
+                        sensors = reader._sensors[PROP_PACKET_SENSE][1:]
                         self.assertEqual([s.value for s in sensors], expected)
                         self.assertEqual([s.available for s in sensors],
                                          [v is not None for v in expected])
@@ -113,7 +113,7 @@ class TemperatureTests(unittest.TestCase):
     def test_captured_short_control_frame_keeps_reader_running(self):
         reader = self.make_reader()
         reader._decode_ctrl_packet(33, bytes((255, 255, 255)))
-        flags_before = [sensor.value for sensor in reader._ctrl_sensor[1:]]
+        flags_before = [sensor.value for sensor in reader._sensors[PROP_PACKET_CTRL][1:]]
         payload = bytearray(32)
         payload[12:14] = b'\x02\xe5'
         wire = bytes((2, 7, 0, 65, 27, 82, 62)) + frame(32, payload)
@@ -129,9 +129,9 @@ class TemperatureTests(unittest.TestCase):
 
         with patch.object(reader, '_read_ord_byte', side_effect=read_byte):
             reader.run()
-        self.assertEqual(reader._ctrl_sensor[0].value, bytes((255, 255, 255)))
-        self.assertEqual([sensor.value for sensor in reader._ctrl_sensor[1:]], flags_before)
-        self.assertEqual(reader._sense_sensor[4].value, 74.1)
+        self.assertEqual(reader._sensors[PROP_PACKET_CTRL][0].value, bytes((255, 255, 255)))
+        self.assertEqual([sensor.value for sensor in reader._sensors[PROP_PACKET_CTRL][1:]], flags_before)
+        self.assertEqual(reader._sensors[PROP_PACKET_SENSE][4].value, 74.1)
 
     def test_control_flags_use_message_33_positions(self):
         reader = self.make_reader()
@@ -154,7 +154,7 @@ class TemperatureTests(unittest.TestCase):
                 payload = bytearray(24)
                 payload[offset] = 1 << bit
                 reader._decode_ctrl_packet(33, payload)
-                for sensor in reader._ctrl_sensor[1:]:
+                for sensor in reader._sensors[PROP_PACKET_CTRL][1:]:
                     position = positions.get(sensor.name)
                     expected = None if position is None else int(position == (offset, bit))
                     with self.subTest(sensor=sensor.name, offset=offset, bit=bit):
@@ -176,7 +176,7 @@ class TemperatureTests(unittest.TestCase):
         for length in range(25):
             reader._decode_ctrl_packet(33, bytes((255,)) * 24)
             reader._decode_ctrl_packet(33, bytes(length))
-            for sensor in reader._ctrl_sensor[1:]:
+            for sensor in reader._sensors[PROP_PACKET_CTRL][1:]:
                 present = offsets.get(sensor.name, 255) < length
                 with self.subTest(sensor=sensor.name, length=length):
                     self.assertEqual(sensor.value, 0 if present else None)
@@ -188,7 +188,7 @@ class TemperatureTests(unittest.TestCase):
         payload[12:14] = b'\x02\xe5'
         reader._decode_sense_packet(32, payload)
         reader._decode_sense_packet(64, bytes(24))
-        self.assertEqual(reader._sense_sensor[4].value, 74.1)
+        self.assertEqual(reader._sensors[PROP_PACKET_SENSE][4].value, 74.1)
 
     def test_unconfigured_packets_get_only_a_summary(self):
         reader = KWBEasyfire(-1)
@@ -241,7 +241,7 @@ class TemperatureTests(unittest.TestCase):
         payload = bytearray(32)
         payload[12:14] = b'\x02\xe5'
         reader._decode_sense_packet(32, payload)
-        sensor = reader._sense_sensor[4]
+        sensor = reader._sensors[PROP_PACKET_SENSE][4]
         self.assertTrue(sensor.available)
         payload[12:14] = b'\x05\x14'
         reader._decode_sense_packet(32, payload)

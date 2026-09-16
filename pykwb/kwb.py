@@ -26,6 +26,7 @@ SOFTWARE.
 Support for KWB Easyfire central heating units.
 """
 
+import asyncio
 import struct
 import logging
 import socket
@@ -146,6 +147,7 @@ class KWBEasyfire:
 
         self._debug_level = PROP_LOGLEVEL_INFO
         self._run_thread = True
+        self._packet_parser = None
 
         self._mode = _mode
         self._ip = _ip
@@ -259,14 +261,16 @@ class KWBEasyfire:
         if not to_return:
             raise EOFError("Input connection closed")
 
-        _LOGGER.debug("READ: " + str(ord(to_return)))
-        self._logdata.append(ord(to_return))
-        if (len(self._logdata) > self._logdatalen):
-            self._logdata = self._logdata[len(self._logdata) - self._logdatalen:]
-
-        self._debug(PROP_LOGLEVEL_TRACE, "READ: " + str(ord(to_return)))
-
+        self._record_byte(ord(to_return))
         return to_return
+
+    def _record_byte(self, value):
+        """Keep identical diagnostics for synchronous and async input."""
+        _LOGGER.debug("READ: %s", value)
+        self._logdata.append(value)
+        if len(self._logdata) > self._logdatalen:
+            self._logdata = self._logdata[-self._logdatalen:]
+        self._debug(PROP_LOGLEVEL_TRACE, "READ: " + str(value))
 
     def _read_ord_byte(self):
         """Read a byte as number from the input."""
@@ -299,12 +303,31 @@ class KWBEasyfire:
 
     def _read_packet(self):
         """Read a checksum-valid frame and return its unescaped payload."""
+        while True:
+            packet = self._consume_byte(self._read_ord_byte())
+            if packet is not None:
+                return packet
+
+    def _consume_byte(self, value):
+        """Retain partial framing state across reads and listening sessions."""
+        if self._packet_parser is None:
+            self._packet_parser = self._parse_packet()
+            next(self._packet_parser)
+        try:
+            self._packet_parser.send(value)
+        except StopIteration as complete:
+            self._packet_parser = None
+            return complete.value
+        return None
+
+    def _parse_packet(self):
+        """Accept bytes via send(), returning one valid, unescaped frame."""
         pending_length = None
         while True:
             if pending_length is None:
-                if self._read_ord_byte() != 2:
+                if (yield) != 2:
                     continue
-                length = self._read_ord_byte()
+                length = (yield)
             else:
                 length = pending_length
                 pending_length = None
@@ -314,12 +337,12 @@ class KWBEasyfire:
             mode = PROP_PACKET_CTRL
             while length == 2:
                 mode = PROP_PACKET_SENSE
-                length = self._read_ord_byte()
+                length = (yield)
             if length < 5:
                 continue
 
-            version = self._read_ord_byte()
-            counter = self._read_ord_byte()
+            version = (yield)
+            counter = (yield)
             checksum = 2
             for value in (length, version, counter):
                 checksum = self._add_to_checksum(checksum, value)
@@ -329,11 +352,11 @@ class KWBEasyfire:
             packet = bytearray()
             valid = True
             for _ in range(length - 5):
-                value = self._read_ord_byte()
+                value = (yield)
                 packet.append(value)
                 checksum = self._add_to_checksum(checksum, value)
                 if value == 2:
-                    padding = self._read_ord_byte()
+                    padding = (yield)
                     if padding != 0:
                         # An unescaped 2 starts a new frame. Reuse its next
                         # byte as the length (or extra sense header), rather
@@ -343,7 +366,7 @@ class KWBEasyfire:
                         break
             if not valid:
                 continue
-            if self._read_ord_byte() != checksum:
+            if (yield) != checksum:
                 continue
 
             packet_type = "SENSE" if mode == PROP_PACKET_SENSE else "CTRL"
@@ -412,23 +435,88 @@ class KWBEasyfire:
 
         return ret
 
+    def _decode_packet(self, mode, version, packet):
+        """Decode only configured message IDs with matching frame types."""
+        if mode == PROP_PACKET_SENSE and version == PROP_PACKET_SENSE:
+            self._decode_sense_packet(version, packet)
+        elif mode == PROP_PACKET_CTRL and version == PROP_PACKET_CTRL:
+            self._decode_ctrl_packet(version, packet)
+
     def run(self):
-        """Main thread that reads from input and populates the sensors."""
-        while (self._run_thread):
+        """Read synchronously until stopped or input closes."""
+        while self._run_thread:
             try:
-                (mode, version, packet) = self._read_packet()
+                packet = self._read_packet()
             except EOFError:
                 self._run_thread = False
                 return
-            if mode == PROP_PACKET_SENSE and version == PROP_PACKET_SENSE:
-                self._decode_sense_packet(version, packet)
-            elif mode == PROP_PACKET_CTRL and version == PROP_PACKET_CTRL:
-                self._decode_ctrl_packet(version, packet)
+            self._decode_packet(*packet)
 
     def run_thread(self):
-        """Run the main thread."""
+        """Start the background listener."""
         self._run_thread = True
         self._thread.start()
+
+    async def _read_async_byte(self):
+        if self._mode == PROP_MODE_TCP:
+            data = await asyncio.get_running_loop().sock_recv(self._socket, 1)
+            if not data:
+                raise EOFError("Input connection closed")
+        elif self._mode == PROP_MODE_SERIAL:
+            # timeout=0 makes serial reads nonblocking on all platforms.
+            while True:
+                data = self._serial.read(1)
+                if data:
+                    break
+                await asyncio.sleep(0.01)
+        elif self._mode == PROP_MODE_FILE:
+            return self._read_ord_byte()
+        else:
+            raise ValueError("Unsupported input mode")
+        value = data[0]
+        self._record_byte(value)
+        return value
+
+    async def listen_forever(self):
+        """Update sensors until EOF or task cancellation, without a worker thread.
+
+        Partial packets survive cancellation. Connection construction remains
+        synchronous; TCP/serial blocking settings are restored on exit.
+        """
+        if self._mode == PROP_MODE_TCP:
+            timeout = self._socket.gettimeout()
+            self._socket.setblocking(False)
+        elif self._mode == PROP_MODE_SERIAL:
+            timeout = self._serial.timeout
+            self._serial.timeout = 0
+        try:
+            while True:
+                # Yield even when input is buffered so deadlines and
+                # cancellation work under continuous traffic.
+                await asyncio.sleep(0)
+                try:
+                    value = await self._read_async_byte()
+                except EOFError:
+                    return
+                packet = self._consume_byte(value)
+                if packet is not None:
+                    self._decode_packet(*packet)
+        finally:
+            if self._mode == PROP_MODE_TCP:
+                self._socket.settimeout(timeout)
+            elif self._mode == PROP_MODE_SERIAL:
+                self._serial.timeout = timeout
+
+    async def listen_for(self, seconds=1):
+        """Update sensors for at most seconds, or until EOF; preserve partial input."""
+        if not 0 <= seconds < float('inf'):
+            raise ValueError("seconds must be finite and non-negative")
+        if seconds == 0:
+            return
+        try:
+            await asyncio.wait_for(self.listen_forever(), timeout=seconds)
+        except asyncio.TimeoutError:
+            pass
 
     def stop_thread(self):
         """Stop the main thread."""
@@ -442,6 +530,11 @@ class KWBEasyfire:
 def main():
     """Main method for debug purposes."""
     parser = argparse.ArgumentParser()
+    group_execution = parser.add_argument_group('Execution')
+    group_execution.add_argument('--mode', dest='execution_mode', choices=('thread', 'async'),
+                                 default='thread', help="Execution mode (default: thread)")
+    group_execution.add_argument('--wait', type=float, default=5,
+                                 help="Seconds to listen before stopping (default: 5)")
     group_tcp = parser.add_argument_group('TCP')
     group_tcp.add_argument('--tcp', dest='mode', action='store_const', const=PROP_MODE_TCP, help="Set tcp mode")
     group_tcp.add_argument('--host', dest='hostname', help="Specify hostname", default='')
@@ -457,9 +550,6 @@ def main():
                                 help="Print individual messages (default: true)")
     group_terminal.add_argument('--summary', choices=('true', 'false'), default='true',
                                 help="Print final sensor summary (default: true)")
-    group_execution = parser.add_argument_group('Execution')
-    group_execution.add_argument('--wait', type=float, default=5,
-                                 help="Seconds to listen before stopping (default: 5)")
     args = parser.parse_args()
     if not 0 <= args.wait < float('inf'):
         parser.error('--wait must be a finite, non-negative number')
@@ -467,9 +557,14 @@ def main():
     kwb = KWBEasyfire(args.mode, args.hostname, args.port, args.interface, 0, args.file)
     if args.log == 'false':
         kwb._debug_level = PROP_LOGLEVEL_NONE
-    kwb.run_thread()
-    time.sleep(args.wait)
-    kwb.stop_thread()
+    # Run in either async loop or thread
+    if args.execution_mode == 'async':
+        asyncio.run(kwb.listen_for(seconds=args.wait))
+    else:
+        kwb.run_thread()
+        time.sleep(args.wait)
+        kwb.stop_thread()
+    # Print summary
     if args.summary == 'true':
         print("\n\n---\nSUMMARY:")
         for sensor in kwb.get_sensors():
