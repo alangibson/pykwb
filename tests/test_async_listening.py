@@ -25,7 +25,7 @@ class AsyncListeningTests(unittest.IsolatedAsyncioTestCase):
         return reader, sender
 
     def furnace(self, reader):
-        return next(s.value for s in reader.get_sensors() if s.name == 'Furnace')
+        return next(s.value for s in reader.get_sensors() if s.key == 'heater_temp')
 
     def temperature_frame(self):
         payload = bytearray(32)

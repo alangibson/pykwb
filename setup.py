@@ -5,6 +5,7 @@ setup(
     name = 'pykwb',
     version = '0.0.21',
     packages = ['pykwb'],
+    package_data = {'pykwb': ['messages.csv']},
     install_requires = ['pyserial>=3.0.1'],
     description = 'KWB Easyfire serial library, for inclusion into homeassistant',
     author = 'Markus Peter',

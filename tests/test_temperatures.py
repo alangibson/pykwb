@@ -5,7 +5,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from pykwb.kwb import KWBEasyfire, PROP_MODE_FILE, PROP_MODE_TCP, PROP_PACKET_SENSE, PROP_PACKET_CTRL
+from pykwb.kwb import KWBEasyfire, PROP_MODE_FILE, PROP_MODE_TCP, PROP_PACKET_SENSE, PROP_PACKET_CTRL, PROP_SENSOR_TEMPERATURE, PROP_SENSOR_FLAG
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,7 +71,8 @@ class TemperatureTests(unittest.TestCase):
                     counts[message_id] = counts.get(message_id, 0) + 1
                     if mode == PROP_PACKET_SENSE and counts[message_id] == 1:
                         reader._decode_sense_packet(message_id, payload)
-                        sensors = reader._sensors[PROP_PACKET_SENSE][1:]
+                        sensors = [s for s in reader._sensors[PROP_PACKET_SENSE]
+                                   if s.sensor_type == PROP_SENSOR_TEMPERATURE]
                         self.assertEqual([s.value for s in sensors], expected)
                         self.assertEqual([s.available for s in sensors],
                                          [v is not None for v in expected])
@@ -131,31 +132,26 @@ class TemperatureTests(unittest.TestCase):
             reader.run()
         self.assertEqual(reader._sensors[PROP_PACKET_CTRL][0].value, bytes((255, 255, 255)))
         self.assertEqual([sensor.value for sensor in reader._sensors[PROP_PACKET_CTRL][1:]], flags_before)
-        self.assertEqual(reader._sensors[PROP_PACKET_SENSE][4].value, 74.1)
+        self.assertEqual(next(s for s in reader.get_sensors() if s.key == 'heater_temp').value, 74.1)
 
     def test_control_flags_use_message_33_positions(self):
         reader = self.make_reader()
-        positions = {
-            'Fire Damper': (0, 1),
-            'Alarm 2': (0, 2), 'Alarm 1': (0, 3),
-            'Ignition': (16, 2), 'Power': (1, 2), 'Boiler 0 Pump': (2, 5),
-            'Heating Circuit 1 Pump': (1, 5), 'Cleaning': (3, 7),
-            'Heating Circuit 1 Mixer On': (1, 7),
-            'Heating Circuit 1 Mixer Closed': (2, 0),
-            'Main Relais': (9, 1), 'Room Discharge': (9, 2),
-            'Heating Circuit 2 Pump': (1, 6), 'Ash Discharge': (3, 6),
-            'Return Mixer On': (2, 3), 'Return Mixer Closed': (2, 4),
-            'Heating Circuit 2 Mixer On': (2, 1),
-            'Heating Circuit 2 Mixer Closed': (2, 2),
-        }
+        positions = [
+            (1, 2), (1, 5), (1, 6), (1, 7), (2, 0), (2, 1), (2, 2),
+            (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (3, 0), (3, 0),
+            (3, 2), (3, 6), (3, 7), (3, 7), (4, 1), (4, 5), (5, 0),
+            (9, 1), (9, 2), (16, 2),
+        ]
+        flags = [s for s in reader._sensors[PROP_PACKET_CTRL]
+                 if s.sensor_type == PROP_SENSOR_FLAG]
+        self.assertEqual(len(flags), len(positions))
         # Walk every payload bit to detect wrong offsets and cross-talk.
         for offset in range(24):
             for bit in range(8):
                 payload = bytearray(24)
                 payload[offset] = 1 << bit
                 reader._decode_ctrl_packet(33, payload)
-                for sensor in reader._sensors[PROP_PACKET_CTRL][1:]:
-                    position = positions.get(sensor.name)
+                for sensor, position in zip(flags, positions):
                     expected = None if position is None else int(position == (offset, bit))
                     with self.subTest(sensor=sensor.name, offset=offset, bit=bit):
                         self.assertEqual(sensor.value, expected)
@@ -163,21 +159,13 @@ class TemperatureTests(unittest.TestCase):
 
     def test_short_known_control_payloads_mark_missing_flags_unavailable(self):
         reader = self.make_reader()
-        offsets = {'Fire Damper': 0, 'Alarm 2': 0, 'Alarm 1': 0,
-                   'Ignition': 16, 'Power': 1, 'Boiler 0 Pump': 2,
-                   'Heating Circuit 1 Pump': 1, 'Cleaning': 3,
-                   'Heating Circuit 1 Mixer On': 1,
-                   'Heating Circuit 1 Mixer Closed': 2,
-                   'Main Relais': 9, 'Room Discharge': 9,
-                   'Heating Circuit 2 Pump': 1, 'Ash Discharge': 3,
-                   'Return Mixer On': 2, 'Return Mixer Closed': 2,
-                   'Heating Circuit 2 Mixer On': 2,
-                   'Heating Circuit 2 Mixer Closed': 2}
         for length in range(25):
             reader._decode_ctrl_packet(33, bytes((255,)) * 24)
             reader._decode_ctrl_packet(33, bytes(length))
             for sensor in reader._sensors[PROP_PACKET_CTRL][1:]:
-                present = offsets.get(sensor.name, 255) < length
+                if sensor.sensor_type != PROP_SENSOR_FLAG:
+                    continue
+                present = sensor.index < length
                 with self.subTest(sensor=sensor.name, length=length):
                     self.assertEqual(sensor.value, 0 if present else None)
                     self.assertEqual(sensor.available, present)
@@ -188,7 +176,7 @@ class TemperatureTests(unittest.TestCase):
         payload[12:14] = b'\x02\xe5'
         reader._decode_sense_packet(32, payload)
         reader._decode_sense_packet(64, bytes(24))
-        self.assertEqual(reader._sensors[PROP_PACKET_SENSE][4].value, 74.1)
+        self.assertEqual(next(s for s in reader.get_sensors() if s.key == 'heater_temp').value, 74.1)
 
     def test_unconfigured_packets_get_only_a_summary(self):
         reader = KWBEasyfire(-1)
@@ -241,7 +229,7 @@ class TemperatureTests(unittest.TestCase):
         payload = bytearray(32)
         payload[12:14] = b'\x02\xe5'
         reader._decode_sense_packet(32, payload)
-        sensor = reader._sensors[PROP_PACKET_SENSE][4]
+        sensor = next(s for s in reader.get_sensors() if s.key == 'heater_temp')
         self.assertTrue(sensor.available)
         payload[12:14] = b'\x05\x14'
         reader._decode_sense_packet(32, payload)

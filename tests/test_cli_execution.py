@@ -1,11 +1,33 @@
 """CLI execution mode selects the listener independently of its transport."""
 import unittest
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
 from unittest.mock import AsyncMock, patch
 
 from pykwb.kwb import PROP_MODE_FILE, main
 
 
 class CLIExecutionTests(unittest.TestCase):
+    def test_script_and_module_load_bundled_sensors(self):
+        root = Path(__file__).resolve().parents[1]
+        environment = os.environ.copy()
+        environment.pop('PYTHONPATH', None)
+        with tempfile.TemporaryDirectory() as directory:
+            for command, cwd in (
+                    ([sys.executable, str(root / 'pykwb' / 'kwb.py')], directory),
+                    ([sys.executable, '-m', 'pykwb.kwb'], root)):
+                with self.subTest(command=command):
+                    result = subprocess.run(
+                        command + ['--mode', 'async', '--wait', '0', '--log', 'false'],
+                        cwd=cwd, env=environment, capture_output=True, text=True,
+                        check=False, timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn('Heater Temp', result.stdout)
+
     def test_execution_modes(self):
         for options, asynchronous in (([], False), (['--mode', 'thread'], False),
                                       (['--mode', 'async'], True)):
