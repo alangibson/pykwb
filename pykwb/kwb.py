@@ -42,6 +42,7 @@ if __name__ == "__main__" and not __package__:
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from pykwb.decode import decode_pairs, decode_temperature
 from pykwb.messages import load_messages
 
 PROP_LOGLEVEL_TRACE = 5
@@ -213,9 +214,11 @@ class KWBEasyfireSensor:
 class KWBEasyfire:
     """Communicats with the KWB Easyfire unit."""
 
-    def __init__(self, _mode, _ip="", _port=0, _serial_device="", _serial_speed=19200, _file_path=""):
+    def __init__(self, _mode, _ip="", _port=0, _serial_device="", _serial_speed=19200,
+                 _file_path="", _config=None):
         """Initialize the Object."""
 
+        self._config = dict(_config or {})
         self._debug_level = PROP_LOGLEVEL_INFO
         self._run_thread = True
         self._packet_parser = None
@@ -341,13 +344,7 @@ class KWBEasyfire:
     @staticmethod
     def _decode_temp(byte_1, byte_2):
         """Decode a signed short temperature as two bytes to a single number."""
-        temp = (byte_1 << 8) + byte_2
-        if temp == 1300:
-            return None
-        if (temp > 32767):
-            temp = temp - 65536
-        temp = temp / 10
-        return temp
+        return decode_temperature(byte_1, byte_2)
 
     def _read_packet(self):
         """Read a checksum-valid frame and return its unescaped payload."""
@@ -472,6 +469,9 @@ class KWBEasyfire:
             self._decode_sense_packet(version, packet)
         elif mode == PROP_PACKET_CTRL and version == PROP_PACKET_CTRL:
             self._decode_ctrl_packet(version, packet)
+        if version in self._config.get('decode', []):
+            for line in decode_pairs(version, packet):
+                self._debug(PROP_LOGLEVEL_INFO, line)
 
     def run(self):
         """Read synchronously until stopped or input closes."""
@@ -596,6 +596,8 @@ def main():
                                  help="Seconds to listen, or summary interval with --forever (default: 5)")
     group_execution.add_argument('--forever', action='store_true', default=False,
                                  help="Listen continuously, printing summaries every --wait seconds")
+    group_execution.add_argument('--decode', nargs='*', type=int, default=[], metavar='ID',
+                                 help="Also decode two-byte values from offsets 3 and 4 for these message IDs (0-255)")
     group_tcp = parser.add_argument_group('TCP')
     group_tcp.add_argument('--tcp', dest='mode', action='store_const', const=PROP_MODE_TCP, help="Set tcp mode")
     group_tcp.add_argument('--host', dest='hostname', help="Specify hostname", default='')
@@ -616,8 +618,11 @@ def main():
         parser.error('--wait must be a finite, non-negative number')
     if args.forever and args.wait == 0:
         parser.error('--wait must be positive with --forever')
+    if any(message_id < 0 or message_id > 255 for message_id in args.decode):
+        parser.error('--decode IDs must be between 0 and 255')
 
-    kwb = KWBEasyfire(args.mode, args.hostname, args.port, args.interface, 0, args.file)
+    kwb = KWBEasyfire(args.mode, args.hostname, args.port, args.interface, 0, args.file,
+                     _config={'decode': args.decode})
     if args.log == 'false':
         kwb._debug_level = PROP_LOGLEVEL_NONE
     # Run in either async loop or thread
