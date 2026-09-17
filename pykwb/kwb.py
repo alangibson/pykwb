@@ -30,6 +30,8 @@ import asyncio
 import struct
 import logging
 import socket
+import select
+import errno
 import time
 import threading
 import argparse
@@ -88,6 +90,10 @@ SERIAL_INTERFACE = "/dev/ttyUSB0"
 SERIAL_SPEED = 19200
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class _ListenerStopped(Exception):
+    """Internal signal for interrupting synchronous connection/read waits."""
 
 
 class KWBEasyfireSensor:
@@ -219,9 +225,24 @@ class KWBEasyfire:
         """Initialize the Object."""
 
         self._config = dict(_config or {})
+        self._config['connection'] = {
+            'reconnect': False,
+            'connect_timeout': 5,
+            'stale_timeout': 30,
+            'retry_initial': 1,
+            'retry_max': 30,
+            **self._config.get('connection', {}),
+        }
         self._debug_level = PROP_LOGLEVEL_INFO
         self._run_thread = True
         self._packet_parser = None
+        self._socket = None
+        self._stop_event = threading.Event()
+        self._retry_delay = self._config['connection']['retry_initial']
+        self._last_valid_packet = time.monotonic()
+        for key in ('connect_timeout', 'stale_timeout', 'retry_initial', 'retry_max'):
+            if not 0 < self._config['connection'][key] < float('inf'):
+                raise ValueError("connection.%s must be finite and positive" % key)
 
         self._mode = _mode
         self._ip = _ip
@@ -250,7 +271,12 @@ class KWBEasyfire:
 
         self._thread = threading.Thread(target=self.run, daemon=True)
 
-        self._open_connection()
+        try:
+            self._open_connection()
+        except OSError as error:
+            if not self._reconnect_enabled():
+                raise
+            self._connection_lost(error)
 
     def _debug(self, level, text):
         """Output a debug log text."""
@@ -259,7 +285,6 @@ class KWBEasyfire:
 
     def __del__(self):
         """Destruct the object."""
-        self._debug(PROP_LOGLEVEL_DEBUG, self._logdata)
         self._close_connection()
 
     def _open_connection(self):
@@ -267,19 +292,99 @@ class KWBEasyfire:
         if (self._mode == PROP_MODE_SERIAL):
             self._serial = serial.Serial(self._serial_device, self._serial_speed)
         elif (self._mode == PROP_MODE_TCP):
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.connect((self._ip, self._port))
+            self._connect_tcp()
         elif (self._mode == PROP_MODE_FILE):
             self._file = open(self._file_path, "r")
 
     def _close_connection(self):
-        """Close the connection to the easyfire unit."""
-        if (self._mode == PROP_MODE_SERIAL):
-            self._serial.close()
-        elif (self._mode == PROP_MODE_TCP):
-            self._socket.close()
-        elif (self._mode == PROP_MODE_FILE):
-            self._file.close()
+        """Close resources, including after a failed constructor/connect."""
+        for name in ('_socket', '_serial', '_file'):
+            resource = getattr(self, name, None)
+            if resource is not None:
+                resource.close()
+        self._socket = None
+
+    def _reconnect_enabled(self):
+        return self._mode == PROP_MODE_TCP and self._config['connection']['reconnect']
+
+    def _connection_lost(self, error):
+        self._debug(PROP_LOGLEVEL_WARN, "TCP disconnected: %s" % error)
+        self._close_connection()
+        self._packet_parser = None
+        for sensor in self.get_sensors():
+            sensor.value = None
+
+    def _next_retry_delay(self):
+        settings = self._config['connection']
+        delay = min(self._retry_delay, settings['retry_max'])
+        self._retry_delay = min(delay * 2, settings['retry_max'])
+        self._debug(PROP_LOGLEVEL_INFO, "TCP reconnect in %g seconds" % delay)
+        return delay
+
+    def _connect_tcp(self):
+        """Connect with a deadline and interruptible readiness waits."""
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.setblocking(False)
+            result = sock.connect_ex((self._ip, self._port))
+            pending = (errno.EINPROGRESS, errno.EWOULDBLOCK, errno.EALREADY, errno.EINTR)
+            if result != 0 and result not in pending:
+                raise OSError(result, "TCP connect failed")
+            deadline = time.monotonic() + self._config['connection']['connect_timeout']
+            while result != 0:
+                if self._stop_event.is_set():
+                    raise _ListenerStopped()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("TCP connect timed out")
+                _, ready, failed = select.select([], [sock], [sock], min(0.1, remaining))
+                if ready or failed:
+                    result = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+                    if result:
+                        raise OSError(result, "TCP connect failed")
+                    break
+            sock.setblocking(True)
+        except BaseException:
+            sock.close()
+            raise
+        self._socket = sock
+        self._last_valid_packet = time.monotonic()
+
+    async def _connect_tcp_async(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setblocking(False)
+        try:
+            await asyncio.wait_for(
+                asyncio.get_running_loop().sock_connect(sock, (self._ip, self._port)),
+                timeout=self._config['connection']['connect_timeout'])
+        except BaseException:
+            sock.close()
+            raise
+        self._socket = sock
+        self._last_valid_packet = time.monotonic()
+
+    def _stale_remaining(self):
+        remaining = (self._config['connection']['stale_timeout']
+                     - (time.monotonic() - self._last_valid_packet))
+        if remaining <= 0:
+            raise TimeoutError("No valid TCP packet within stale_timeout")
+        return remaining
+
+    def _read_tcp_byte(self):
+        sock = self._socket
+        timeout = sock.gettimeout()
+        try:
+            while True:
+                if self._stop_event.is_set():
+                    raise _ListenerStopped()
+                remaining = self._stale_remaining() if self._reconnect_enabled() else 0.1
+                sock.settimeout(min(0.1, remaining))
+                try:
+                    return sock.recv(1)
+                except socket.timeout:
+                    continue
+        finally:
+            sock.settimeout(timeout)
 
     @staticmethod
     def _byte_rot_left(byte, distance):
@@ -302,7 +407,7 @@ class KWBEasyfire:
         if (self._mode == PROP_MODE_SERIAL):
             to_return = self._serial.read(1)
         elif (self._mode == PROP_MODE_TCP):
-            to_return = self._socket.recv(1)
+            to_return = self._read_tcp_byte()
         elif (self._mode == PROP_MODE_FILE):
             read = self._file.readline()
             if (read == ''):
@@ -362,6 +467,8 @@ class KWBEasyfire:
             self._packet_parser.send(value)
         except StopIteration as complete:
             self._packet_parser = None
+            self._last_valid_packet = time.monotonic()
+            self._retry_delay = self._config['connection']['retry_initial']
             return complete.value
         return None
 
@@ -474,23 +581,43 @@ class KWBEasyfire:
                 self._debug(PROP_LOGLEVEL_INFO, line)
 
     def run(self):
-        """Read synchronously until stopped or input closes."""
-        while self._run_thread:
-            try:
-                packet = self._read_packet()
-            except EOFError:
-                self._run_thread = False
-                return
-            self._decode_packet(*packet)
+        """Read until stopped, retrying TCP failures when configured."""
+        try:
+            while self._run_thread:
+                try:
+                    if self._reconnect_enabled() and self._socket is None:
+                        if self._stop_event.wait(self._next_retry_delay()):
+                            return
+                        self._connect_tcp()
+                        self._debug(PROP_LOGLEVEL_INFO, "TCP reconnected")
+                    packet = self._read_packet()
+                except (EOFError, OSError) as error:
+                    if self._reconnect_enabled():
+                        self._connection_lost(error)
+                        continue
+                    if isinstance(error, EOFError):
+                        return
+                    raise
+                self._decode_packet(*packet)
+        except _ListenerStopped:
+            pass
+        finally:
+            self._run_thread = False
 
     def run_thread(self):
         """Start the background listener."""
         self._run_thread = True
+        self._stop_event.clear()
         self._thread.start()
 
     async def _read_async_byte(self):
         if self._mode == PROP_MODE_TCP:
-            data = await asyncio.get_running_loop().sock_recv(self._socket, 1)
+            if self._reconnect_enabled():
+                remaining = self._stale_remaining()
+                data = await asyncio.wait_for(
+                    asyncio.get_running_loop().sock_recv(self._socket, 1), remaining)
+            else:
+                data = await asyncio.get_running_loop().sock_recv(self._socket, 1)
             if not data:
                 raise EOFError("Input connection closed")
         elif self._mode == PROP_MODE_SERIAL:
@@ -515,8 +642,9 @@ class KWBEasyfire:
         synchronous; TCP/serial blocking settings are restored on exit.
         """
         if self._mode == PROP_MODE_TCP:
-            timeout = self._socket.gettimeout()
-            self._socket.setblocking(False)
+            timeout = self._socket.gettimeout() if self._socket is not None else None
+            if self._socket is not None:
+                self._socket.setblocking(False)
         elif self._mode == PROP_MODE_SERIAL:
             timeout = self._serial.timeout
             self._serial.timeout = 0
@@ -526,14 +654,23 @@ class KWBEasyfire:
                 # cancellation work under continuous traffic.
                 await asyncio.sleep(0)
                 try:
+                    if self._reconnect_enabled() and self._socket is None:
+                        await asyncio.sleep(self._next_retry_delay())
+                        await self._connect_tcp_async()
+                        self._debug(PROP_LOGLEVEL_INFO, "TCP reconnected")
                     value = await self._read_async_byte()
-                except EOFError:
-                    return
+                except (EOFError, OSError) as error:
+                    if self._reconnect_enabled():
+                        self._connection_lost(error)
+                        continue
+                    if isinstance(error, EOFError):
+                        return
+                    raise
                 packet = self._consume_byte(value)
                 if packet is not None:
                     self._decode_packet(*packet)
         finally:
-            if self._mode == PROP_MODE_TCP:
+            if self._mode == PROP_MODE_TCP and self._socket is not None:
                 self._socket.settimeout(timeout)
             elif self._mode == PROP_MODE_SERIAL:
                 self._serial.timeout = timeout
@@ -552,6 +689,7 @@ class KWBEasyfire:
     def stop_thread(self):
         """Stop the main thread."""
         self._run_thread = False
+        self._stop_event.set()
 
     def is_alive(self):
         """Determine if thread is alive."""
@@ -609,10 +747,23 @@ def main():
     group_file.add_argument('--file', dest='mode', action='store_const', const=PROP_MODE_FILE, help="Set file mode")
     group_file.add_argument('--name', dest='file', help="Specify file name", default='')
     group_terminal = parser.add_argument_group('Terminal')
+    log_levels = {
+        'none': PROP_LOGLEVEL_NONE,
+        'error': PROP_LOGLEVEL_ERROR,
+        'warn': PROP_LOGLEVEL_WARN,
+        'warning': PROP_LOGLEVEL_WARN,
+        'info': PROP_LOGLEVEL_INFO,
+        'debug': PROP_LOGLEVEL_DEBUG,
+        'trace': PROP_LOGLEVEL_TRACE,
+    }
+    group_terminal.add_argument('--log-level', type=str.lower, choices=log_levels,
+                                default='info', help="Log verbosity (default: info)")
     group_terminal.add_argument('--log', choices=('true', 'false'), default='true',
-                                help="Print individual messages (default: true)")
-    group_terminal.add_argument('--summary', choices=('true', 'false'), default='true',
+                                help="Print individual messages; false overrides --log-level (default: true)")
+    group_terminal.add_argument('--summary', action='store_true', default=True,
                                 help="Print sensor summaries (default: true)")
+    group_terminal.add_argument('--no-summary', dest='summary', action='store_false',
+                                help="Disable sensor summaries")
     args = parser.parse_args()
     if not 0 <= args.wait < float('inf'):
         parser.error('--wait must be a finite, non-negative number')
@@ -623,13 +774,13 @@ def main():
 
     kwb = KWBEasyfire(args.mode, args.hostname, args.port, args.interface, 0, args.file,
                      _config={'decode': args.decode})
-    if args.log == 'false':
-        kwb._debug_level = PROP_LOGLEVEL_NONE
+    kwb._debug_level = (PROP_LOGLEVEL_NONE if args.log == 'false'
+                        else log_levels[args.log_level])
     # Run in either async loop or thread
     try:
         if args.execution_mode == 'async':
             if args.forever:
-                asyncio.run(_listen_with_summaries(kwb, args.wait, args.summary == 'true'))
+                asyncio.run(_listen_with_summaries(kwb, args.wait, args.summary))
             else:
                 asyncio.run(kwb.listen_for(seconds=args.wait))
         else:
@@ -639,7 +790,7 @@ def main():
                     time.sleep(args.wait)
                     if not args.forever:
                         break
-                    if args.summary == 'true':
+                    if args.summary:
                         _print_summary(kwb)
                     if not kwb.is_alive():
                         break
@@ -648,7 +799,7 @@ def main():
     except KeyboardInterrupt:
         return
     # Print summary
-    if not args.forever and args.summary == 'true':
+    if not args.forever and args.summary:
         _print_summary(kwb)
 
 
