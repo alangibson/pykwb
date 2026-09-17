@@ -1,17 +1,46 @@
 # pykwb
-Library to interpret the serial output of a KWB Easyfire Pellet Central Heating Unit
+Library to interpret the serial output of a KWB Comfort 3 controller. Commonly used on Easy Fire heaters.
 
-Setup
+## Quick Start
 
+From the repository root:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install .
+```
+
+Run with your RS485 terminal server's host and port:
+
+```sh
+python3 -m pykwb.kwb --tcp --host 192.168.1.100 --port 23 --summary
+```
+
+(Note: You will need a RS485 to network converter like this : https://www.amazon.de/dp/B0BGHVRMPJ)
+
+Or use your serial device:
+
+```sh
+python3 -m pykwb.kwb --serial --interface /dev/ttyUSB0 --summary
+```
+
+## Running
+
+### Install
+
+#### From Source
+
+```sh
 python3 setup.py build
-
 python3 setup.py install
+```
 
-or
+#### From Pypi Repo
 
+```sh
 pip3 install pykwb
-
-Works over serial or via a RS485 terminal server (telnet)
+```
 
 ## Development
 
