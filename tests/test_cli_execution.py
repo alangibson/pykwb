@@ -12,16 +12,39 @@ from pykwb.kwb import PROP_MODE_FILE, _listen_with_summaries, main
 
 
 class CLIExecutionTests(unittest.TestCase):
+    def test_log_levels_apply_before_listening(self):
+        cases = [([], 3), (['--log', 'false'], 0),
+                 (['--log-level', 'trace', '--log', 'false'], 0)]
+        cases += [(['--log-level', name], level) for name, level in
+                  [('none', 0), ('error', 1), ('warn', 2), ('warning', 2),
+                   ('info', 3), ('debug', 4), ('trace', 5), ('DEBUG', 4)]]
+        for options, expected in cases:
+            with self.subTest(options=options), \
+                    patch('sys.argv', ['kwb', '--wait', '0', '--no-summary'] + options), \
+                    patch('pykwb.kwb.KWBEasyfire') as factory, \
+                    patch('pykwb.kwb.time.sleep'):
+                reader = factory.return_value
+                reader.run_thread.side_effect = lambda: self.assertEqual(reader._debug_level, expected)
+                main()
+                reader.run_thread.assert_called_once_with()
+
+    def test_invalid_log_level_is_rejected(self):
+        with patch('sys.argv', ['kwb', '--log-level', 'invalid']), \
+                patch('sys.stderr'), patch('pykwb.kwb.KWBEasyfire') as factory:
+            with self.assertRaises(SystemExit) as error:
+                main()
+            self.assertEqual(error.exception.code, 2)
+            factory.assert_not_called()
+
     def test_forever_thread_summaries_and_shutdown(self):
-        for summary in ('true', 'false'):
+        for options, summary in (([], True), (['--summary'], True), (['--no-summary'], False)):
             with self.subTest(summary=summary), \
-                    patch('sys.argv', ['kwb', '--forever', '--wait', '0.25',
-                                       '--summary', summary]), \
+                    patch('sys.argv', ['kwb', '--forever', '--wait', '0.25'] + options), \
                     patch('pykwb.kwb.KWBEasyfire') as factory, \
                     patch('pykwb.kwb.time.sleep', side_effect=[None, None, KeyboardInterrupt]) as sleep, \
                     patch('pykwb.kwb._print_summary') as report:
                 main()
-                self.assertEqual(report.call_count, 2 if summary == 'true' else 0)
+                self.assertEqual(report.call_count, 2 if summary else 0)
                 self.assertEqual(sleep.call_count, 3)
                 factory.return_value.run_thread.assert_called_once_with()
                 factory.return_value.stop_thread.assert_called_once_with()
@@ -80,7 +103,7 @@ class CLIExecutionTests(unittest.TestCase):
                                       (['--mode', 'async'], True)):
             with self.subTest(options=options), \
                     patch('sys.argv', ['kwb', '--file', '--name', 'capture.txt',
-                                       '--wait', '0.25', '--summary', 'false'] + options), \
+                                       '--wait', '0.25', '--no-summary'] + options), \
                     patch('pykwb.kwb.KWBEasyfire') as factory, \
                     patch('pykwb.kwb.time.sleep') as sleep:
                 reader = factory.return_value

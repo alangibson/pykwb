@@ -33,7 +33,7 @@ class AsyncListeningTests(unittest.IsolatedAsyncioTestCase):
         return frame(32, payload)
 
     async def test_file_replay_matches_synchronous_decoding_without_threads(self):
-        path = ROOT / 'testdata' / 'kwb_33_32.txt'
+        path = ROOT / 'tests' / 'data' / 'kwb_33_32.txt'
         synchronous = KWBEasyfire(PROP_MODE_FILE, _file_path=path)
         asynchronous = KWBEasyfire(PROP_MODE_FILE, _file_path=path)
         for reader in (synchronous, asynchronous):

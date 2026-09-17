@@ -55,7 +55,7 @@ class PairDecodeTests(unittest.TestCase):
         for args, expected in (([], []), (['--decode'], []),
                                (['--decode', '64', '87'], [64, 87])):
             with self.subTest(args=args), \
-                    patch('sys.argv', ['kwb', '--summary', 'false'] + args), \
+                    patch('sys.argv', ['kwb', '--no-summary'] + args), \
                     patch('pykwb.kwb.KWBEasyfire') as factory, \
                     patch('pykwb.kwb.time.sleep'):
                 main()

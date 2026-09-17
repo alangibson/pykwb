@@ -59,7 +59,7 @@ class TemperatureTests(unittest.TestCase):
         )
         for filename, sense_id, count, expected in cases:
             with self.subTest(filename=filename):
-                reader = KWBEasyfire(PROP_MODE_FILE, _file_path=ROOT / 'testdata' / filename)
+                reader = KWBEasyfire(PROP_MODE_FILE, _file_path=ROOT / 'tests' / 'data' / filename)
                 reader._debug_level = 0
                 self.addCleanup(reader._close_connection)
                 counts = {}
@@ -99,6 +99,7 @@ class TemperatureTests(unittest.TestCase):
 
     def test_closed_tcp_connection_stops_reader_cleanly(self):
         with patch('pykwb.kwb.socket.socket') as socket_factory:
+            socket_factory.return_value.connect_ex.return_value = 0
             socket_factory.return_value.recv.return_value = b''
             reader = KWBEasyfire(PROP_MODE_TCP)
             reader._debug_level = 0
