@@ -3,7 +3,15 @@ Library to interpret the serial output of a KWB Comfort 3 controller. Commonly u
 
 ## Quick Start
 
-From the repository root:
+Get the code
+
+```sh
+git clone https://github.com/alangibson/pykwb.git
+cd pykwb
+git checkout improvements
+```
+
+Then install:
 
 ```sh
 python3 -m venv .venv
@@ -42,6 +50,12 @@ python3 setup.py install
 pip3 install pykwb
 ```
 
+### Logging
+
+Add `--log-level debug` to a run command to change verbosity. Levels: `none`,
+`error`, `warning` (or `warn`), `info` (default), `debug`, `trace`.
+`--log false` disables logging regardless of the level; `--no-summary` disables sensor summaries separately.
+
 ## Development
 
 ### Testing
@@ -49,6 +63,16 @@ pip3 install pykwb
 ```sh
 python3 -m unittest discover -s tests -v
 ```
+
+## Bug Reports
+
+To file a bug report, append `--log-level trace > trace.log` to the command you're using to run pykwb. For example
+
+```sh
+python3 pykwb/kwb.py --tcp --host 192.168.1.100 --port 23 --log-level trace > trace.log
+```
+
+Then [open an issue here](https://github.com/alangibson/pykwb/issues), answer the questions and attach trace.log.
 
 ## References
 
