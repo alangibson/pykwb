@@ -5,15 +5,7 @@ Supports Easyfire 1 and Easyfire 2 heaters.
 
 ## Quick Start
 
-Get the code
-
-```sh
-git clone https://github.com/alangibson/pykwb.git
-cd pykwb
-git checkout improvements
-```
-
-Then install:
+Install:
 
 ```sh
 python3 -m venv .venv
@@ -82,7 +74,7 @@ To file a bug report, append `--log-level trace > trace.log` to the command you'
 python3 pykwb/kwb.py --tcp --host 127.0.0.1 --port 23 --log-level trace > trace.log
 ```
 
-Then [open an issue here](https://github.com/alangibson/pykwb/issues), answer the questions and attach trace.log.
+Then open an issue on Github and attach trace.log.
 
 ## References
 
