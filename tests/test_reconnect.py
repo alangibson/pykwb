@@ -142,7 +142,7 @@ class ReconnectTests(unittest.IsolatedAsyncioTestCase):
                    side_effect=[(first, first_writer), (second, second_writer)]) as connect:
             await reader.listen_for(0.015)
             self.assertEqual(connect.await_count, 2)
-            self.assertEqual(next(s.value for s in reader.get_sensors() if s.key == 'heater_temp'), 74.1)
+            self.assertEqual(next(s.value for s in reader.get_sensors() if s.key == 'boiler_temp'), 74.1)
         first_writer.close.assert_called_once()
         await reader.close()
         second_writer.close.assert_called_once()

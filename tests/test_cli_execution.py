@@ -86,7 +86,7 @@ class CLIExecutionTests(unittest.TestCase):
                         check=False, timeout=10,
                     )
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertIn('Heater Temp', result.stdout)
+                    self.assertIn('Boiler Temp', result.stdout)
 
     def test_cli_uses_async_listener_and_closes(self):
         with patch('sys.argv', ['kwb', '--file', '--name', 'capture.txt',

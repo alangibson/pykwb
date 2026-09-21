@@ -133,14 +133,14 @@ class TemperatureTests(unittest.IsolatedAsyncioTestCase):
             await reader.listen_forever()
         self.assertEqual(reader._sensors[PROP_PACKET_CTRL][0].value, bytes((255, 255, 255)))
         self.assertEqual([sensor.value for sensor in reader._sensors[PROP_PACKET_CTRL][1:]], flags_before)
-        self.assertEqual(next(s for s in reader.get_sensors() if s.key == 'heater_temp').value, 74.1)
+        self.assertEqual(next(s for s in reader.get_sensors() if s.key == 'boiler_temp').value, 74.1)
 
     async def test_control_flags_use_message_33_positions(self):
         reader = self.make_reader()
         positions = [
             (1, 2), (1, 5), (1, 6), (1, 7), (2, 0), (2, 1), (2, 2),
             (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (3, 0),
-            (3, 2), (3, 6), (3, 7), (3, 7), (4, 1), (4, 5), (5, 0),
+            (3, 2), (3, 6), (3, 7), (4, 1), (4, 5), (5, 0),
             (9, 1), (9, 2), (16, 2),
         ]
         flags = [s for s in reader._sensors[PROP_PACKET_CTRL]
@@ -177,7 +177,7 @@ class TemperatureTests(unittest.IsolatedAsyncioTestCase):
         payload[12:14] = b'\x02\xe5'
         reader._decode_sense_packet(32, payload)
         reader._decode_sense_packet(64, bytes(24))
-        self.assertEqual(next(s for s in reader.get_sensors() if s.key == 'heater_temp').value, 74.1)
+        self.assertEqual(next(s for s in reader.get_sensors() if s.key == 'boiler_temp').value, 74.1)
 
     async def test_message_64_wire_decoding_and_missing_temperatures(self):
         reader = self.make_reader()
@@ -194,7 +194,7 @@ class TemperatureTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((loop_4.unit_of_measurement, loop_3.unit_of_measurement),
                          ('°C', '°C'))
         self.assertEqual(reader._sensors[64][0].value, payload)
-        self.assertIsNone(sensors['heater_temp'].value)
+        self.assertIsNone(sensors['boiler_temp'].value)
 
         # Boiler frames and control frames with ID 64 cannot change these values.
         reader._decode_packet(PROP_PACKET_SENSE, 32, bytes(32))
@@ -264,7 +264,7 @@ class TemperatureTests(unittest.IsolatedAsyncioTestCase):
         payload = bytearray(32)
         payload[12:14] = b'\x02\xe5'
         reader._decode_sense_packet(32, payload)
-        sensor = next(s for s in reader.get_sensors() if s.key == 'heater_temp')
+        sensor = next(s for s in reader.get_sensors() if s.key == 'boiler_temp')
         self.assertTrue(sensor.available)
         payload[12:14] = b'\x05\x14'
         reader._decode_sense_packet(32, payload)
