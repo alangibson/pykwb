@@ -1,4 +1,4 @@
-"""CLI execution mode selects the listener independently of its transport."""
+"""CLI uses async listening and always closes its connection."""
 import unittest
 import asyncio
 import os
@@ -21,12 +21,13 @@ class CLIExecutionTests(unittest.TestCase):
         for options, expected in cases:
             with self.subTest(options=options), \
                     patch('sys.argv', ['kwb', '--wait', '0', '--no-summary'] + options), \
-                    patch('pykwb.kwb.KWBEasyfire') as factory, \
-                    patch('pykwb.kwb.time.sleep'):
+                    patch('pykwb.kwb.KWBEasyfire') as factory:
                 reader = factory.return_value
-                reader.run_thread.side_effect = lambda: self.assertEqual(reader._debug_level, expected)
+                reader.close = AsyncMock()
+                reader.listen_for = AsyncMock(side_effect=lambda **kwargs: self.assertEqual(reader._debug_level, expected))
                 main()
-                reader.run_thread.assert_called_once_with()
+                reader.listen_for.assert_awaited_once_with(seconds=0)
+                reader.close.assert_awaited_once_with()
 
     def test_invalid_log_level_is_rejected(self):
         with patch('sys.argv', ['kwb', '--log-level', 'invalid']), \
@@ -36,24 +37,13 @@ class CLIExecutionTests(unittest.TestCase):
             self.assertEqual(error.exception.code, 2)
             factory.assert_not_called()
 
-    def test_forever_thread_summaries_and_shutdown(self):
-        for options, summary in (([], True), (['--summary'], True), (['--no-summary'], False)):
-            with self.subTest(summary=summary), \
-                    patch('sys.argv', ['kwb', '--forever', '--wait', '0.25'] + options), \
-                    patch('pykwb.kwb.KWBEasyfire') as factory, \
-                    patch('pykwb.kwb.time.sleep', side_effect=[None, None, KeyboardInterrupt]) as sleep, \
-                    patch('pykwb.kwb._print_summary') as report:
-                main()
-                self.assertEqual(report.call_count, 2 if summary else 0)
-                self.assertEqual(sleep.call_count, 3)
-                factory.return_value.run_thread.assert_called_once_with()
-                factory.return_value.stop_thread.assert_called_once_with()
-
     def test_forever_async_cli(self):
-        with patch('sys.argv', ['kwb', '--forever', '--mode', 'async', '--wait', '0.25']), \
+        with patch('sys.argv', ['kwb', '--forever', '--wait', '0.25']), \
                 patch('pykwb.kwb.KWBEasyfire') as factory, \
                 patch('pykwb.kwb._listen_with_summaries', new_callable=AsyncMock) as listen:
+            factory.return_value.close = AsyncMock()
             main()
+            factory.return_value.close.assert_awaited_once()
             listen.assert_awaited_once_with(factory.return_value, 0.25, True)
 
     def test_async_summaries_do_not_restart_listener(self):
@@ -91,32 +81,31 @@ class CLIExecutionTests(unittest.TestCase):
                     ([sys.executable, '-m', 'pykwb.kwb'], root)):
                 with self.subTest(command=command):
                     result = subprocess.run(
-                        command + ['--mode', 'async', '--wait', '0', '--log', 'false'],
+                        command + ['--wait', '0', '--log', 'false'],
                         cwd=cwd, env=environment, capture_output=True, text=True,
                         check=False, timeout=10,
                     )
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn('Heater Temp', result.stdout)
 
-    def test_execution_modes(self):
-        for options, asynchronous in (([], False), (['--mode', 'thread'], False),
-                                      (['--mode', 'async'], True)):
-            with self.subTest(options=options), \
-                    patch('sys.argv', ['kwb', '--file', '--name', 'capture.txt',
-                                       '--wait', '0.25', '--no-summary'] + options), \
-                    patch('pykwb.kwb.KWBEasyfire') as factory, \
-                    patch('pykwb.kwb.time.sleep') as sleep:
-                reader = factory.return_value
-                reader.listen_for = AsyncMock()
+    def test_cli_uses_async_listener_and_closes(self):
+        with patch('sys.argv', ['kwb', '--file', '--name', 'capture.txt',
+                               '--wait', '0.25', '--no-summary']), \
+                patch('pykwb.kwb.KWBEasyfire') as factory:
+            reader = factory.return_value
+            reader.listen_for = AsyncMock()
+            reader.close = AsyncMock()
+            main()
+            self.assertEqual(factory.call_args.args[0], PROP_MODE_FILE)
+            reader.listen_for.assert_awaited_once_with(seconds=0.25)
+            reader.close.assert_awaited_once_with()
+
+    def test_cli_closes_after_listener_failure(self):
+        with patch('sys.argv', ['kwb', '--wait', '1']), \
+                patch('pykwb.kwb.KWBEasyfire') as factory:
+            reader = factory.return_value
+            reader.listen_for = AsyncMock(side_effect=OSError('connection failed'))
+            reader.close = AsyncMock()
+            with self.assertRaises(OSError):
                 main()
-                self.assertEqual(factory.call_args.args[0], PROP_MODE_FILE)
-                if asynchronous:
-                    reader.listen_for.assert_awaited_once_with(seconds=0.25)
-                    reader.run_thread.assert_not_called()
-                    reader.stop_thread.assert_not_called()
-                    sleep.assert_not_called()
-                else:
-                    reader.listen_for.assert_not_called()
-                    reader.run_thread.assert_called_once_with()
-                    sleep.assert_called_once_with(0.25)
-                    reader.stop_thread.assert_called_once_with()
+            reader.close.assert_awaited_once()
