@@ -2,3 +2,5 @@
 __pycache__
 pykwb.egg-info
 *.log
+build/
+dist/
